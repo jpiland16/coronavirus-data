@@ -264,10 +264,101 @@
 			
 			function showLegend() {
 				deleteChildren("output");
+				var outputSpace = document.getElementById("output");
+				var headers = ["","","#","County","State","Total","\u0394Today","%Growth","\u0394 (7d Avg)","%Growth (7d Avg)"]
+				var table = document.createElement("table");
+				table.classList.add("myTable");
+				var headerRow = document.createElement("tr");
+				table.appendChild(headerRow);
+				for(var j = 0; j < headers.length; j++) {
+					var th = document.createElement("th");
+					th.innerText = headers[j];
+					headerRow.appendChild(th);
+				}
 				for(var i = 0; i < currentlyShowing.length; i++) { 
 					var county = currentlyShowing[i].county;
 					var state = currentlyShowing[i].state;
-					var div = document.createElement("div");
+					
+					var row = document.createElement("tr");
+					table.appendChild(row);
+					
+					var td;
+					
+					td = document.createElement("td");
+					var button = document.createElement("button");
+					button.innerText = "Remove";
+					button.setAttribute("onclick","removeLine('" + county + "','" + state + "')");
+					td.appendChild(button);
+					row.appendChild(td);
+					
+					td = document.createElement("td");
+					var button = document.createElement("button");
+					var hue = Math.round((hueMultiplier * i) % 360);
+					var color = document.createElement("button");
+					color.style.backgroundColor = "hsla(" + hue + ",90%,39%,0.8)";
+					color.disabled = true;
+					color.classList.add("color");
+					td.appendChild(color);
+					row.appendChild(td);
+					
+					td = document.createElement("td");
+					td.innerText = (i + 1);
+					td.classList.add("right");
+					row.appendChild(td);
+					
+					td = document.createElement("td");
+					td.innerText = county;
+					row.appendChild(td);
+					
+					td = document.createElement("td");
+					td.innerText = state;
+					row.appendChild(td);
+					
+					var caseData = countyByState[state][county];
+					var totalCases = caseData[caseData.length - 1];
+					
+					td = document.createElement("td");
+					td.innerText = totalCases;
+					td.classList.add("right");
+					row.appendChild(td);
+					
+					var yestCases = caseData[caseData.length - 2];
+					var newCases = totalCases - yestCases;
+					var plusMinus = "+";
+					if(newCases < 0) { plusMinus = ""; }
+					
+					td = document.createElement("td");
+					td.innerText = plusMinus + newCases;
+					td.classList.add("right");
+					row.appendChild(td);
+					
+					var percGrowth = 0;
+					if(yestCases > 0) { percGrowth = Math.round(newCases / yestCases * 100); }
+					
+					td = document.createElement("td");
+					td.innerText = plusMinus + percGrowth + "%";
+					td.classList.add("right");
+					row.appendChild(td);
+					
+					var plusMinus2 = "+";
+					var caseAvgData = get7DA(getDiffs(caseData));
+					var caseAvgToday = caseAvgData[caseAvgData.length - 1];
+					var percAvgData = get7DA(getPercs(caseData));
+					var percAvgToday = percAvgData[percAvgData.length - 1];
+					if(caseAvgToday < 0) { plusMinus2 = ""; }
+					
+					td = document.createElement("td");
+					td.innerText = plusMinus2 + caseAvgToday;
+					td.classList.add("right");
+					row.appendChild(td);
+					
+					td = document.createElement("td");
+					td.innerText = plusMinus2 + percAvgToday + "%";
+					td.classList.add("right");
+					row.appendChild(td);
+					
+					
+					/*var div = document.createElement("div");
 					div.classList.add("legend");
 					var outputSpace = document.getElementById("output");
 					var label = document.createElement("label");
@@ -280,6 +371,7 @@
 					if(yestCases > 0) { percGrowth = Math.round(newCases / yestCases * 100); }
 					var plusMinus = "+";
 					if(newCases < 0) { plusMinus = ""; }
+					var plusMinus2 = "+";
 					label.innerText = " (" + (i + 1) + ") " + county + ", " + state + " ";
 					label2.innerText = totalCases + " cases (" + plusMinus + newCases + " yesterday = " + plusMinus + percGrowth + "%)";
 					label.classList.add("legendLabel");
@@ -295,8 +387,10 @@
 					div.appendChild(button);
 					div.appendChild(color);
 					div.appendChild(label);
-					div.appendChild(label2);
+					div.appendChild(label2);*/
+					
 				}
+				outputSpace.appendChild(table);
 			}
 			
 			function drawLabels(t) {
@@ -339,17 +433,13 @@
 				switch(document.getElementById("dataSelect").value) {
 					case "DaysSince5":
 						var startIndex = 0;
-						var foundMatch = false;
 						for(var i = 0; i < array.length; i++) {
+							startIndex = i;
 							if(array[i] >= 5) {
-								startIndex = i;
-								foundMatch = true;
 								break;
 							} 
 						}
-						if(foundMatch) {
-							newArray = array.slice(startIndex);
-						} 
+						newArray = array.slice(startIndex);
 						break;
 					case "All":
 						newArray = array;
@@ -511,7 +601,9 @@
 						maintainAspectRatio: false,
 						layout: {
 							padding: {
-								right: 125
+								right: 125,
+								top: 10,
+								bottom: 10
 							}
 						}
 					}
@@ -627,6 +719,13 @@
         </script>     
 		
 		<style>
+			#outputArea {
+				height: calc(20vh - 10px);
+				width: calc(100vw - 10px);
+				background-color: white;
+				overflow: scroll;
+			}
+			
 		 	#status {
 				width: 50%;	
 			}
@@ -640,13 +739,12 @@
 			#chartSpace {
 				width: 99vw; 
 				height: 65vh;
+				background-color: white;
 			}
 			
 			#output {
-				height: calc(20vh - 10px);
-				width: calc(100vw - 10px);
+				width: calc(100% - 10px);
 				padding: 5px;
-				overflow: scroll;
 			}
 			
 			body {
@@ -697,8 +795,9 @@
 			
 			.color {
 				width: 20px;
+				height: 20px;
 				border-width: 0px;
-				margin-left: 10px;
+				margin-top: 4px;
 			}
 			
 			.legend {
@@ -709,6 +808,28 @@
 				padding-left: 10px;	
 				display: block;
 				width: 255px;
+			}
+			
+			:not(:fullscreen) .fsOnly {
+				display: none;	
+			}
+			
+			:fullscreen .fsOnly {
+				display: inline-block;
+			}
+			
+			:fullscreen .fsNot {
+				display: none;	
+			}
+			
+			table, td, th, tr {
+				border: 1px solid #eeeeee;
+				border-collapse: collapse;
+				padding: 5px
+			}
+			
+			.right {
+				text-align: right;
 			}
 			
 		</style>
@@ -745,10 +866,16 @@
 			<button onclick="window.location.reload();">Reset</button>
 		</div>
 		<div id="chartSpace">
+			<button onclick="document.getElementById('chartSpace').requestFullscreen()" class="fsNot">Expand Chart (full screen)</button>
+			<button onclick="document.exitFullscreen()" class="fsOnly">Close full screen</button>
 			<canvas id="myChart">
 			</canvas>
 		</div>
-		<div id="output"></div>		
+		<div id="outputArea">
+			<button onclick="document.getElementById('outputArea').requestFullscreen()" class="fsNot">Expand List (full screen)</button>
+			<button onclick="document.exitFullscreen()" class="fsOnly">Close full screen</button>
+			<div id="output"></div>
+		</div>		
     </body>
 
 </html>
