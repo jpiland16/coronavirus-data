@@ -377,8 +377,9 @@
 				var differenceArray = [];
 				for(var i = 0; i < newArray.length; i++) {
 					if(i > 0) {
-						var test = differenceArray[i] = Math.round((newArray[i] - newArray[i - 1]) / newArray[i - 1] * 10000) / 100;
-						differenceArray[i] = test ? test : 0;
+						differenceArray[i] = Math.round((newArray[i] - newArray[i - 1]) / newArray[i - 1] * 10000) / 100;
+						var test = differenceArray[i];
+						differenceArray[i] = isNaN(test) ? 0 : test;
 					} else {
 						differenceArray[0] = 50;	
 					}
