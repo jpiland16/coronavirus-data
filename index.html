@@ -314,7 +314,27 @@
 					td.innerText = state;
 					row.appendChild(td);
 					
-					var caseData = countyByState[state][county];
+					var array = countyByState[state][county];
+					
+					var caseData = [];
+					
+					switch(document.getElementById("dataSelect").value) {
+						case "DaysSince5":
+							var startIndex = 0;
+							for(var j = 0; j < array.length; j++) {
+								startIndex = j;
+								if(array[j] >= 5) {
+									break;
+								} 
+							}
+							caseData = array.slice(startIndex);
+							break;
+						case "All":
+							caseData = array;
+							break;
+							
+					}
+					
 					var totalCases = caseData[caseData.length - 1];
 					
 					td = document.createElement("td");
