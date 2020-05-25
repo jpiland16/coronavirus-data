@@ -1,0 +1,725 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.1//EN"
+"http://www.w3.org/TR/xhtml11/DTD/xhtml11.dtd">
+<html>
+    <head>
+        <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+        <title>webQuery Data Analysis</title>
+		
+		<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
+        <script language="javascript" type="text/javascript">
+			
+			var JHUdata = [];
+			var coronaData = [];
+			var countyByState = {};
+			var dayLabels = [];
+			var myLineChart;
+			var currentlyShowing = [];
+			var hueMultiplier = 130.1;
+			var maxToShow = 20;
+			
+			var preset = true;
+			
+			var originalController = Chart.controllers.line;
+			Chart.controllers.line = Chart.controllers.line.extend({
+				draw: function() {
+			    	originalController.prototype.draw.call(this, arguments);
+			    	drawLabels(this);
+			  	}
+			});
+			
+            function print(p) {               
+                var d = new Date();
+                var minute = d.getMinutes();
+                if(minute < 10) {
+                    minute = "0" + minute;
+                }	
+                var sec = d.getSeconds();
+                if(sec < 10) {
+                    sec = "0" + sec;    
+                }	
+                var msec = d.getMilliseconds();
+                if(msec < 10) {
+                    msec = "00" + msec;
+                }
+                if(msec < 100 && msec > 9) {
+                    msec = "0" + msec;
+                }
+                console.log((d.getMonth() + 1) + "/" + (d.getDate()) + "/" + (d.getYear() + 1900) + " " + d.getHours() + ":" + minute + ":" + sec + "." + msec + " | " + p);
+            }
+            
+			function stat(info) {
+				document.getElementById("status").value = info;
+				print(info);	
+			}
+		
+		// Use CORS-Anywhere to scrape a web page //
+			
+		var cors_api_url = 'https://cors-anywhere.herokuapp.com/';
+  		function doCORSRequest(options, printResult) {
+   		var x = new XMLHttpRequest();
+    		x.open(options.method, cors_api_url + options.url);
+   			x.onload = x.onerror = function() { printResult(
+    	   		//options.method + ' ' + options.url + '\n' +
+       			//x.status + ' ' + x.statusText + '\n\n' +
+       			(x.responseText || '')
+      		); };
+    		if (/^POST/i.test(options.method)) {
+      			x.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+    		}
+    		x.send(options.data);
+  		}
+
+  		function getData(url, functionWhenDone) {
+			//stat("Attempting to retrieve data from " + url);
+      		doCORSRequest({
+        		method: 'GET',
+        		url: url,
+      		}, function printResult(result) {
+        		functionWhenDone(result);
+      		});	  
+  		}
+  
+			function resolveCommas(array) { //Resolves commas for ONE LINE of a CSV file
+				showRegOut("Preparing to resolve commas in this array: " + array);
+				var newArray = new Array();
+				var currentIndex = 0;
+				var searchingForMatch = false;
+				for (var i = 0; i < array.length; i++) {
+					if (array[i]) {
+						var currentString = array[i];
+						if (currentString.search(/^"(?!")|^"""/) != -1) { //If #1  --  CHECK THE REGEX 
+							//newArray[currentIndex] = "";
+							showRegOut("The current string {" + currentString + "} and array index " + i + " begins with a double quote. Current array value for index " + currentIndex + " is " + newArray[currentIndex]);
+							currentString = currentString.substr(1);
+							if (currentString.search(/(?<!")"$|"""$/) != -1) { //If #1a
+								showRegOut("The current string {" + currentString + "} and array index " + i + " also ends with a double quote. Current array value for index " + currentIndex + " is " + newArray[currentIndex]);
+								currentString = currentString.substr(0,(currentString.length - 1));
+								newArray[currentIndex] = currentString.replace(/""/g,'"');
+								currentIndex += 1;
+							} else {
+								newArray[currentIndex] = currentString.replace(/""/g,'"');
+								showRegOut("The current string {" + currentString + "} and array index " + i + " does not have the end quote. Searching for a match... Current array value for index " + currentIndex + " is " + newArray[currentIndex]);
+								searchingForMatch = true;
+							}							
+						} else if(searchingForMatch) { //If #1b
+							if (currentString.search(/(?<!")"$|"""$/) != -1) { //If #1ba
+								showRegOut("The current string {" + currentString + "} and array index " + i + " has the end quote. Stopping search... Current array value for index " + currentIndex + " is " + newArray[currentIndex]);
+								currentString = currentString.substr(0,(currentString.length - 1));
+								newArray[currentIndex] = newArray[currentIndex] + "," + currentString.replace(/""/g,'"');
+								searchingForMatch = false;
+								currentIndex += 1;
+							} else {
+								showRegOut("The current string {" + currentString + "} and array index " + i + " does not have the end quote. Continuing the search... Current array value for index " + currentIndex + " is " + newArray[currentIndex]);
+								newArray[currentIndex] = newArray[currentIndex] + "," + currentString.replace(/""/g,'"');	
+							}
+						} else {
+							showRegOut("The current string {" + currentString + "} and array index " + i + " is not being searched. Current array value for index " + currentIndex + " is " + newArray[currentIndex]);
+							newArray[currentIndex] = currentString.replace(/""/g,'"');
+							currentIndex += 1;
+						}
+					} else {
+						currentIndex++;
+					}
+					showRegOut(newArray);
+				}
+				
+				return newArray;
+			}
+			
+			function showRegOut(text) {
+				//print(text);	
+			}
+		
+			
+			function bodyLoaded() {
+				getData("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", function dataLoaded(data) {
+					if(data) {
+						stat("Data downloaded. Analyzing...");
+						var currentState = ""; //(As in North Carolina)
+						JHUdata = data.split("\n");
+						var length = JHUdata.length - 1; //last line is blank
+						length = 3148; //Actually - line 3148 is the last "county" listing.
+						for(var i = 0; i < length; i++) {
+							coronaData[i] = [];
+							coronaData[i] = JHUdata[i].split(",")
+							coronaData[i] = resolveCommas(coronaData[i]);
+							
+							if(i > 0) {
+								var locationInfo = coronaData[i][10].split(",");
+								if(locationInfo[1][0] == " ") {
+									locationInfo[1] = locationInfo[1].substring(1);	
+								}
+								
+								var currentCounty = locationInfo[0];
+								
+								if(locationInfo[1] != currentState) {
+									currentState = locationInfo[1];
+									countyByState[currentState] = {};
+								}
+								
+								countyByState[currentState][currentCounty] = coronaData[i].slice(11);
+								
+							}
+						}
+						var lastIndex = coronaData[0].length - 1;
+						var mostRecentUpdate = coronaData[0][lastIndex];
+						stat("Done importing " + (length - 1) + " counties. Last update " + mostRecentUpdate + ".");
+						dayLabels = coronaData[0].slice(11);
+						populateSelects();
+						
+						
+						
+					} else {
+						stat("Data import failed.");	
+					}
+				} );
+			}
+			
+			function populateSelects() {
+				var stateSelect = document.getElementById("state");
+				deleteChildren("state");
+				var disabledOption = document.createElement("option");
+				disabledOption.innerText = "Choose a state...";
+				disabledOption.selected = true;
+				disabledOption.disabled = true;
+				stateSelect.appendChild(disabledOption);
+				
+				
+				document.getElementById("state").disabled = false;
+				var stateNames = Object.getOwnPropertyNames(countyByState);
+				for (var i = 0; i < stateNames.length; i++) {
+					
+					var stateOption = document.createElement("option");
+					stateOption.innerText = stateNames[i];
+					stateOption.value = stateNames[i];
+					stateSelect.appendChild(stateOption);
+									
+				}
+				
+				if(preset) {
+					document.getElementById("state").value = "North Carolina";
+					changeState();
+				}
+			}
+			
+			function showInfo(text) {
+				var output = document.getElementById("output");
+				var label = document.createElement("label");
+				label.innerText = text;
+				output.insertBefore(label,output.firstChild);
+				output.insertBefore(document.createElement("br"),output.firstChild);
+				output.insertBefore(document.createElement("br"),output.firstChild);
+			}
+			
+			function changeState() {
+				document.getElementById("county").disabled = false;
+				deleteChildren("county");
+				var disabledOption = document.createElement("option");
+				var countySelect = document.getElementById("county");
+				disabledOption.innerText = "Choose a county...";
+				disabledOption.selected = true;
+				disabledOption.disabled = true;
+				countySelect.appendChild(disabledOption);
+				
+				var selectedState = document.getElementById("state").value;
+				
+				var stateObject = countyByState[selectedState];
+				var countyNames = Object.getOwnPropertyNames(stateObject);
+				
+				for (var i = 0; i < countyNames.length; i++) {
+					
+					var countyOption = document.createElement("option");
+					countyOption.innerText = countyNames[i];
+					countyOption.value = countyNames[i];
+					countySelect.appendChild(countyOption);
+									
+				}
+				
+				if(preset) {
+					document.getElementById("county").value = "Cumberland";	
+					changeCounty();
+					preset = false;
+				}
+				
+			}
+			
+			function pushLine(county,state) {
+				var hasMatch = false;
+				for(var i = 0; i < currentlyShowing.length; i++) {
+					if (currentlyShowing[i].county == county && currentlyShowing[i].state == state) {
+						hasMatch = true;	
+						break;
+					}
+				}
+				
+				if(!hasMatch) {
+					currentlyShowing[currentlyShowing.length] = {
+						county: county,
+						state: state
+					}
+					
+				}
+				
+			}
+			
+			function showLegend() {
+				deleteChildren("output");
+				for(var i = 0; i < currentlyShowing.length; i++) { 
+					var county = currentlyShowing[i].county;
+					var state = currentlyShowing[i].state;
+					var div = document.createElement("div");
+					div.classList.add("legend");
+					var outputSpace = document.getElementById("output");
+					var label = document.createElement("label");
+					var label2 = document.createElement("label");
+					var caseData = countyByState[state][county];
+					var totalCases = caseData[caseData.length - 1];
+					var yestCases = caseData[caseData.length - 2];
+					var newCases = totalCases - yestCases;
+					var percGrowth = Math.round(newCases / yestCases * 100);
+					var plusMinus = "+";
+					if(newCases < 0) { plusMinus = ""; }
+					label.innerText = " (" + (i + 1) + ") " + county + ", " + state + " ";
+					label2.innerText = totalCases + " cases (" + plusMinus + newCases + " yesterday = " + plusMinus + percGrowth + "%)";
+					label.classList.add("legendLabel");
+					var button = document.createElement("button");
+					button.innerText = "Remove";
+					button.setAttribute("onclick","removeLine('" + county + "','" + state + "')");
+					var hue = Math.round((hueMultiplier * i) % 360);
+					var color = document.createElement("button");
+					color.style.backgroundColor = "hsla(" + hue + ",90%,39%,0.8)";
+					color.disabled = true;
+					color.classList.add("color");
+					outputSpace.appendChild(div);
+					div.appendChild(button);
+					div.appendChild(color);
+					div.appendChild(label);
+					div.appendChild(label2);
+				}
+			}
+			
+			function drawLabels(t) {
+				var ctx = document.getElementById("myChart").getContext("2d");
+				ctx.save();
+				ctx.font = Chart.helpers.fontString(15, Chart.defaults.global.defaultFontStyle, Chart.defaults.global.defaultFontFamily);
+				ctx.textBaseline = 'bottom'; 
+			
+				var chartInstance = t.chart;
+				var datasets = chartInstance.config.data.datasets;
+				var i = 0;
+				datasets.forEach(function(ds, index) {
+					var hue = Math.round((hueMultiplier * i) % 360);
+					ctx.fillStyle = "hsla(" + hue + ",90%,39%,0.8)";
+			    	var label = ds.label.substr(0,10) + "...";
+			    	var meta = chartInstance.controller.getDatasetMeta(index);
+			    	var len = meta.data.length-1;
+			    	//console.log(ds, meta.data[len]._model);    
+			    	var xOffset = meta.data[len]._model.x+10;
+			    	var yOffset = meta.data[len]._model.y+5;
+			    	ctx.fillText(label, xOffset, yOffset);
+					i++;
+				});
+				ctx.restore();
+			}
+			
+			function removeLine(county,state) {
+				for(var i = 0; i < currentlyShowing.length; i++) {
+					if (currentlyShowing[i].county == county && currentlyShowing[i].state == state) {
+						currentlyShowing.splice(i,1);
+						redrawChart();
+						break;
+					}
+				}
+			}
+			
+			function specialArray(array) { //Deals with two variables: (1) Whether we are getting all data or data after 5 cases, and (2) the type of data to show.
+				var newArray = [];
+				
+				switch(document.getElementById("dataSelect").value) {
+					case "DaysSince5":
+						var startIndex = 0;
+						for(var i = 0; i < array.length; i++) {
+							if(array[i] >= 5) {
+								startIndex = i;
+								break;
+							}
+						}
+						newArray = array.slice(startIndex);
+						break;
+					case "All":
+						newArray = array;
+						break;
+						
+				}
+				
+				switch(document.getElementById("dataType").value) {
+					case "TotalCases":
+						break;
+					case "NewDay":
+						newArray = getDiffs(newArray);
+						break;
+					case "New7Day":
+						newArray = get7DA(getDiffs(newArray));
+						break;
+					case "PercentDay":
+						newArray = getPercs(newArray);
+						break;
+					case "Percent7DA":
+						newArray = get7DA(getPercs(newArray));
+						break;
+						
+				}
+				
+				return newArray;	
+			}
+			
+			function getPercs(newArray) {
+				var differenceArray = [];
+				for(var i = 0; i < newArray.length; i++) {
+					if(i > 0) {
+						differenceArray[i] = Math.round((newArray[i] - newArray[i - 1]) / newArray[i - 1] * 10000) / 100;
+					} else {
+						differenceArray[0] = 50;	
+					}
+				}
+				return differenceArray;
+			}
+				
+			function getDiffs(newArray) {
+				var differenceArray = [];
+				for(var i = 0; i < newArray.length; i++) {
+					if(i > 0) {
+						differenceArray[i] = newArray[i] - newArray[i - 1];
+					} else {
+						differenceArray[0] = newArray[0];	
+					}
+				}
+				return differenceArray;
+			}
+			
+			function get7DA(array) {
+				var sdAVGarray = [];
+				for(var i = 0; i < array.length; i++) {
+					if(i < 6) {
+						var sum = 0;
+						for(var j = 0; j <= i; j++) {
+							sum += Number(array[j]);
+						}
+						var avg = sum / (i + 1);
+						sdAVGarray[i] = Math.round(avg * 100) / 100;
+					} else {
+						var sum = 0;
+						for(var j = 0; j < 7; j++) {
+							sum += Number(array[i - j]);
+						}
+						var avg = sum / 7;
+						sdAVGarray[i] = Math.round(avg * 100) / 100;
+					}
+				}
+				return sdAVGarray;
+			}
+			
+			function getDatasets() {
+				var datasets = [];
+				for(var i = 0; i < currentlyShowing.length; i++) {
+					var crtObj = currentlyShowing[i];
+					var county = crtObj.county;
+					var state = crtObj.state;
+					var hue = Math.round((hueMultiplier * i) % 360);
+					//console.log(hue);
+					datasets[i] = {
+						label:	county + ", " + state,
+						data: specialArray(countyByState[state][county]),
+						backgroundColor: "rgba(0, 0, 0, 0)",
+						borderColor: "hsla(" + hue + ",90%,39%,0.7)"
+					}
+				}
+				
+				return datasets;
+			}
+			
+			function getLabels() { //Deals with one variable: (1) Whether we are getting all data or data after 5 cases
+				var labels = [];
+				var maxLength = 0;
+				for(var i = 0; i < currentlyShowing.length; i++) {
+					var crtObj = currentlyShowing[i];
+					var county = crtObj.county;
+					var state = crtObj.state;
+					var data = countyByState[state][county];
+					
+					var startIndex; 
+					for(var j = 0; j < data.length; j++) {
+						if(data[j] >= 5) {
+							startIndex = j;
+							break;
+						}
+					}
+					var testMax = data.slice(startIndex).length;
+					if(testMax > maxLength) {
+						maxLength = testMax;
+						
+					}
+													   
+				}
+				
+				switch(document.getElementById("dataSelect").value) {
+					case "DaysSince5":
+						for(var i = 0; i < maxLength; i++) {
+							labels[i] = i + " days";
+						}
+						break;
+					case "All":
+						labels = dayLabels;
+						break;
+				}
+				
+				return labels;
+			}
+			
+			function redrawChart() {
+				var ctx = document.getElementById("myChart");
+				if(myLineChart) { myLineChart.destroy(); }
+				myLineChart = new Chart(ctx, {
+				    type: 'line',
+				    data: {
+						labels: getLabels(),
+						datasets: getDatasets()
+					},
+					options: {
+						scales: {
+							yAxes: [{
+								type: document.getElementById("graphType").value
+							}]
+						},
+						legend: {
+							display: false
+						},
+						tooltips: {
+							mode: "index",
+							intersect: false
+						},
+						maintainAspectRatio: false,
+						layout: {
+							padding: {
+								right: 125
+							}
+						}
+					}
+				});	
+				showLegend();
+			}
+			
+			function changeCounty() {
+				
+				var state = document.getElementById("state").value;
+				var county = document.getElementById("county").value;
+				pushLine(county,state);
+				redrawChart();
+				//myLineChart.canvas.parentNode.style.height = "50px";
+			}
+			
+			function deleteChildren(elementId) {
+                var element = document.getElementById(elementId);
+                if (element) {
+                    while (element.firstChild) {
+                        element.removeChild(element.firstChild);
+                    }
+                }
+            }
+			
+			function getTopInState() {
+				currentlyShowing = [];
+				var lastDataPoints = [];
+				var state = document.getElementById("state").value;
+				var countyNames = Object.getOwnPropertyNames(countyByState[state]);
+				for (var i = 0; i < countyNames.length; i++) {
+					var data = specialArray(countyByState[state][countyNames[i]]);
+					var lastValue = data[data.length - 1];
+					lastDataPoints[i] = {
+						value: lastValue,
+						state: state,
+						county: countyNames[i]
+					}
+				}
+				
+				lastDataPoints.sort(function(a,b){ return b.value - a.value; }); //note: this is a reverse (high to low) sort.
+				
+				for (var i = 0; i < maxToShow; i++) {
+					if(lastDataPoints[i]) {
+						currentlyShowing[i] = {
+							county: lastDataPoints[i].county,
+							state: lastDataPoints[i].state
+						}
+					}
+				}
+				
+				redrawChart();
+			}
+			
+			function getTopInUS() {
+				currentlyShowing = [];
+				var lastDataPoints = [];
+				var stateNames = Object.getOwnPropertyNames(countyByState);
+				var allIndex = 0;
+				for(var i = 0; i < stateNames.length; i++) {
+					var state = stateNames[i];
+					var countyNames = Object.getOwnPropertyNames(countyByState[state]);
+					for (var j = 0; j < countyNames.length; j++) {
+						var data = specialArray(countyByState[state][countyNames[j]]);
+						var lastValue = data[data.length - 1];
+						lastDataPoints[allIndex] = {
+							value: lastValue,
+							state: state,
+							county: countyNames[j]
+						}
+						allIndex++
+					}
+				}
+					
+				lastDataPoints.sort(function(a,b){ return b.value - a.value; }); //note: this is a reverse (high to low) sort.
+				
+				for (var i = 0; i < maxToShow; i++) {
+					if(lastDataPoints[i]) {
+						currentlyShowing[i] = {
+							county: lastDataPoints[i].county,
+							state: lastDataPoints[i].state
+						}
+					}
+				}
+				
+				redrawChart();
+			}
+			
+			function clearData() {
+				currentlyShowing = [];
+				redrawChart();
+			}
+			
+        </script>     
+		
+		<style>
+		 	#status {
+				width: 50%;	
+			}
+			
+			#topBar {
+				height: calc(15vh - 10px);
+				width: calc(100vw - 10px);
+				padding: 5px;
+			}
+			
+			#chartSpace {
+				width: 99vw; 
+				height: 65vh;
+			}
+			
+			#output {
+				height: calc(20vh - 10px);
+				width: calc(100vw - 10px);
+				padding: 5px;
+				overflow: scroll;
+			}
+			
+			body {
+				margin: 0px;
+				padding: 0px;
+			}
+			
+			
+				#status {
+					width: calc(60% - 15px);	
+				}
+				select {
+					width: calc(20% - 2.666px);
+				}
+				.firstRow {
+					width: calc(20% - 20px);
+				}
+				.sndRowBtn {
+					width: calc(20% - 20px);	
+				}
+			
+			@media (orientation: portrait) {
+				#status {
+					display: none;	
+				}
+				.firstRow {
+					width: calc(50% - 13px);
+				}
+			}
+			
+			#topBar button, select, input {
+				display: inline-block;
+  				background-color: white;
+  				border: 2px solid black;
+  				color: black;
+				padding: 0px 10px;
+  				text-decoration: none;
+  				display: inline-block;
+  				font-size: 14px;
+				font-family: sans-serif;
+				margin: 2px;
+			}
+			
+			#topBar button:hover {
+				background-color: #dddddd;
+				transition: 0.1s;
+			}
+			
+			.color {
+				width: 20px;
+				border-width: 0px;
+				margin-left: 10px;
+			}
+			
+			.legend {
+				display: flex;	
+			}
+			
+			.legendLabel {
+				padding-left: 10px;	
+				display: block;
+				width: 255px;
+			}
+			
+		</style>
+		
+    </head>
+
+    <body onload="bodyLoaded()">
+		<div id="topBar">
+			<input type="text" readonly id="status" value="Importing data from JHU dataset. Please wait..."/>
+			<select id="state" class="firstRow" onchange="changeState()" disabled>
+				<option disabled selected>Please wait...</option>
+			</select>
+			<select id="county" class="firstRow" onchange="changeCounty()" disabled>
+				<option disabled selected>Select a state first.</option>
+			</select><br/>
+			<select id="dataSelect" onchange="redrawChart()">
+				<option value="DaysSince5" selected>Days Since 5 Cases</option>
+				<option value="All">All</option>
+			</select>	
+			<select id="dataType" onchange="redrawChart()">
+				<option value="TotalCases" selected>Total Cases</option>
+				<option value="NewDay">New Cases / Day</option>
+				<option value="New7Day">New Cases (7 Day Avg)</option>
+				<option value="PercentDay">% Growth</option>
+				<option value="Percent7DA">% Growth (7 Day Avg)</option>
+			</select>
+			<select id="graphType" onchange="redrawChart()">
+				<option value="linear" selected>Linear</option>
+				<option value="logarithmic">Logarithmic</option>
+			</select>	
+			<button onclick="getTopInState()" class="sndRowBtn">State Top 20</button>
+			<button onclick="getTopInUS()" class="sndRowBtn">US Top 20</button>
+			<button onclick="clearData()">Clear</button>
+			<button onclick="window.location.reload();">Reset</button>
+		</div>
+		<div id="chartSpace">
+			<canvas id="myChart">
+			</canvas>
+		</div>
+		<div id="output"></div>		
+    </body>
+
+</html>
