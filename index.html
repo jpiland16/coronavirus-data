@@ -276,7 +276,8 @@
 					var totalCases = caseData[caseData.length - 1];
 					var yestCases = caseData[caseData.length - 2];
 					var newCases = totalCases - yestCases;
-					var percGrowth = Math.round(newCases / yestCases * 100);
+					var percGrowth = 0;
+					if(yestCases > 0) { percGrowth = Math.round(newCases / yestCases * 100); }
 					var plusMinus = "+";
 					if(newCases < 0) { plusMinus = ""; }
 					label.innerText = " (" + (i + 1) + ") " + county + ", " + state + " ";
@@ -338,13 +339,17 @@
 				switch(document.getElementById("dataSelect").value) {
 					case "DaysSince5":
 						var startIndex = 0;
+						var foundMatch = false;
 						for(var i = 0; i < array.length; i++) {
 							if(array[i] >= 5) {
 								startIndex = i;
+								foundMatch = true;
 								break;
-							}
+							} 
 						}
-						newArray = array.slice(startIndex);
+						if(foundMatch) {
+							newArray = array.slice(startIndex);
+						} 
 						break;
 					case "All":
 						newArray = array;
@@ -377,11 +382,14 @@
 				var differenceArray = [];
 				for(var i = 0; i < newArray.length; i++) {
 					if(i > 0) {
-						differenceArray[i] = Math.round((newArray[i] - newArray[i - 1]) / newArray[i - 1] * 10000) / 100;
-						var test = differenceArray[i];
-						differenceArray[i] = isNaN(test) ? 0 : test;
+						var last = newArray[i - 1];
+						if(last != 0) {
+							differenceArray[i] = Math.round((newArray[i] - last) / last * 10000) / 100;
+						} else {
+							differenceArray[i] = 0;	
+						}
 					} else {
-						differenceArray[0] = 50;	
+						differenceArray[0] = 0;	
 					}
 				}
 				return differenceArray;
@@ -534,9 +542,17 @@
 				var lastDataPoints = [];
 				var state = document.getElementById("state").value;
 				var countyNames = Object.getOwnPropertyNames(countyByState[state]);
+				console.log("Note: Top data for states will not include counties where yesterday's cases are less than 5.");
 				for (var i = 0; i < countyNames.length; i++) {
-					var data = specialArray(countyByState[state][countyNames[i]]);
-					var lastValue = data[data.length - 1];
+					var raw = countyByState[state][countyNames[i]];
+					var data = specialArray(raw);
+					var lastValue = 0;
+					if(specialArray && data[data.length - 1]) {
+						lastValue = data[data.length - 1];
+					}
+					if(raw[raw.length - 1] < 5) {
+						lastValue = 0;	
+					}
 					lastDataPoints[i] = {
 						value: lastValue,
 						state: state,
@@ -563,12 +579,20 @@
 				var lastDataPoints = [];
 				var stateNames = Object.getOwnPropertyNames(countyByState);
 				var allIndex = 0;
+				console.log("Note: Top data for US will not include counties where yesterday's cases are less than 10.");
 				for(var i = 0; i < stateNames.length; i++) {
 					var state = stateNames[i];
 					var countyNames = Object.getOwnPropertyNames(countyByState[state]);
 					for (var j = 0; j < countyNames.length; j++) {
-						var data = specialArray(countyByState[state][countyNames[j]]);
-						var lastValue = data[data.length - 1];
+						var raw = countyByState[state][countyNames[j]];
+						var data = specialArray(raw);
+						var lastValue = 0;
+						if(specialArray && data[data.length - 1]) {
+							lastValue = data[data.length - 1];
+						}
+						if(raw[raw.length - 1] < 10) {
+							lastValue = 0;	
+						}
 						lastDataPoints[allIndex] = {
 							value: lastValue,
 							state: state,
@@ -581,10 +605,13 @@
 				lastDataPoints.sort(function(a,b){ return b.value - a.value; }); //note: this is a reverse (high to low) sort.
 				
 				for (var i = 0; i < maxToShow; i++) {
+					var county = lastDataPoints[i].county;
+					var state = lastDataPoints[i].state;
+					//console.log(county + ", " + state);
 					if(lastDataPoints[i]) {
 						currentlyShowing[i] = {
-							county: lastDataPoints[i].county,
-							state: lastDataPoints[i].state
+							county: county,
+							state: state
 						}
 					}
 				}
