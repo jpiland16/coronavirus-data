@@ -13,11 +13,15 @@
 			var countyByState = {};
 			var dayLabels = [];
 			var myLineChart;
-			var currentlyShowing = [];
+			var currentlyShowing = []; //For COUNTIES
+			var currentlyShowingStates = [];
+			var currentType = "county";
 			var hueMultiplier = 130.1;
 			var maxToShow = 20;
+			var reverse = 1;
+			var stateData = {};
 			
-			var preset = true;
+			var preset = false;
 			
 			var originalController = Chart.controllers.line;
 			Chart.controllers.line = Chart.controllers.line.extend({
@@ -26,6 +30,27 @@
 			    	drawLabels(this);
 			  	}
 			});
+			
+			var paramString = window.location.href.match(/(?<=\?).+/);
+			var params = [];
+			if (paramString) { params = paramString.toString().split("&"); }
+			var parameterObject = {};
+			for(var i = 0; i < params.length; i++) {
+				var paramSplit = params[i].split("=");
+				if(paramSplit[1]) {
+					parameterObject[paramSplit[0]] = paramSplit[1];
+				}
+			}
+			
+			function getParam(name) {
+				if(parameterObject && parameterObject[name]) {
+					return parameterObject[name];
+				} else {
+					return undefined;	
+				}
+			}
+			
+			
 			
             function print(p) {               
                 var d = new Date();
@@ -132,6 +157,17 @@
 		
 			
 			function bodyLoaded() {
+				
+				if(getParam("preset") == "true") {
+					preset = true;
+				}
+				
+				if(getParam("by") == "state") {
+					currentType = "state";
+					document.getElementById("stateCounty").value = "state";
+					SCDisable();
+				}
+				
 				getData("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", function dataLoaded(data) {
 					if(data) {
 						stat("Data downloaded. Analyzing...");
@@ -158,6 +194,16 @@
 								}
 								
 								countyByState[currentState][currentCounty] = coronaData[i].slice(11);
+								
+								if(!stateData[currentState]) {
+									stateData[currentState] = [];
+								}
+								
+								for(var j = 0; j < countyByState[currentState][currentCounty].length; j++) {
+									var addCountyCases = Number(countyByState[currentState][currentCounty][j]);
+									stateData[currentState][j] = 
+ stateData[currentState][j] ? Number(stateData[currentState][j]) + addCountyCases : addCountyCases;
+								}
 								
 							}
 						}
@@ -212,7 +258,12 @@
 			}
 			
 			function changeState() {
-				document.getElementById("county").disabled = false;
+				if(currentType == "state") {
+					pushState(document.getElementById("state").value);
+					redrawChart();
+				} else {
+					document.getElementById("county").disabled = false;
+				}
 				deleteChildren("county");
 				var disabledOption = document.createElement("option");
 				var countySelect = document.getElementById("county");
@@ -263,9 +314,10 @@
 			}
 			
 			function showLegend() {
+				var array;
 				deleteChildren("output");
 				var outputSpace = document.getElementById("output");
-				var headers = ["","","#","County","State","Total","\u0394Today","%Growth","\u0394 (7d Avg)","%Growth (7d Avg)"]
+				var headers = ["","","#","Location","Total","\u0394Today","%Growth","\u0394 (7d Avg)","%Growth (7d Avg)",""]
 				var table = document.createElement("table");
 				table.classList.add("myTable");
 				var headerRow = document.createElement("tr");
@@ -275,9 +327,21 @@
 					th.innerText = headers[j];
 					headerRow.appendChild(th);
 				}
-				for(var i = 0; i < currentlyShowing.length; i++) { 
-					var county = currentlyShowing[i].county;
-					var state = currentlyShowing[i].state;
+				var arrayToUse = (currentType == "county") ? currentlyShowing : currentlyShowingStates;
+				for(var i = 0; i < arrayToUse.length; i++) { 
+					var label;
+					var county; 
+					var state;
+					if(currentType == "county") {
+						county = arrayToUse[i].county;
+						state = arrayToUse[i].state;
+						array = countyByState[state][county];
+						label = county + ", " + state;
+					} else {
+						state = arrayToUse[i];	
+						array = stateData[state];
+						label = state;
+					}
 					
 					var row = document.createElement("tr");
 					table.appendChild(row);
@@ -287,7 +351,11 @@
 					td = document.createElement("td");
 					var button = document.createElement("button");
 					button.innerText = "Remove";
-					button.setAttribute("onclick","removeLine('" + county + "','" + state + "')");
+					if(currentType == "county") {
+						button.setAttribute("onclick","removeLine('" + county + "','" + state + "')");
+					} else {
+						button.setAttribute("onclick","removeState('" + state + "')");
+					}
 					td.appendChild(button);
 					row.appendChild(td);
 					
@@ -307,14 +375,9 @@
 					row.appendChild(td);
 					
 					td = document.createElement("td");
-					td.innerText = county;
+					td.innerText = label;
 					row.appendChild(td);
 					
-					td = document.createElement("td");
-					td.innerText = state;
-					row.appendChild(td);
-					
-					var array = countyByState[state][county];
 					
 					var caseData = [];
 					
@@ -343,6 +406,7 @@
 					row.appendChild(td);
 					
 					var yestCases = caseData[caseData.length - 2];
+					yestCases = yestCases ? yestCases : 0;
 					var newCases = totalCases - yestCases;
 					var plusMinus = "+";
 					if(newCases < 0) { plusMinus = ""; }
@@ -377,6 +441,13 @@
 					td.classList.add("right");
 					row.appendChild(td);
 					
+					td = document.createElement("td");
+					var btn = document.createElement("button");
+					button.innerText = "Show all data";
+					var onclick = (currentType == "county") ? "showAll('" + state + "','" + county + "')" : "showAll('" + state + "')";
+					button.setAttribute("onclick",onclick);
+					td.appendChild(button);
+					row.appendChild(td);
 					
 					/*var div = document.createElement("div");
 					div.classList.add("legend");
@@ -425,7 +496,11 @@
 				datasets.forEach(function(ds, index) {
 					var hue = Math.round((hueMultiplier * i) % 360);
 					ctx.fillStyle = "hsla(" + hue + ",90%,39%,0.8)";
-			    	var label = ds.label.substr(0,10) + "...";
+					var dotDotDot = "..."
+					if(ds.label.length <= 10) {
+						dotDotDot = "";	
+					}
+			    	var label = ds.label.substr(0,10) + dotDotDot;
 			    	var meta = chartInstance.controller.getDatasetMeta(index);
 			    	var len = meta.data.length-1;
 			    	//console.log(ds, meta.data[len]._model);    
@@ -441,6 +516,16 @@
 				for(var i = 0; i < currentlyShowing.length; i++) {
 					if (currentlyShowing[i].county == county && currentlyShowing[i].state == state) {
 						currentlyShowing.splice(i,1);
+						redrawChart();
+						break;
+					}
+				}
+			}
+			
+			function removeState(state) {
+				for(var i = 0; i < currentlyShowingStates.length; i++) {
+					if (currentlyShowingStates[i] == state) {
+						currentlyShowingStates.splice(i,1);
 						redrawChart();
 						break;
 					}
@@ -541,15 +626,28 @@
 			
 			function getDatasets() {
 				var datasets = [];
-				for(var i = 0; i < currentlyShowing.length; i++) {
-					var crtObj = currentlyShowing[i];
-					var county = crtObj.county;
-					var state = crtObj.state;
+				var showingArray = (currentType == "county") ? currentlyShowing : currentlyShowingStates;
+				for(var i = 0; i < showingArray.length; i++) {
+					var crtObj = showingArray[i]; 
 					var hue = Math.round((hueMultiplier * i) % 360);
 					//console.log(hue);
+					var arrayToUse;
+					var label;
+					if(currentType == "county") {
+						var county = crtObj.county;
+						var state = crtObj.state;
+						arrayToUse = countyByState[state][county];
+						label = county + ", " + state;
+					} else {
+						var state = crtObj;
+						label = state;
+						arrayToUse = stateData[state];
+					}
+					//console.log(arrayToUse);
 					datasets[i] = {
-						label:	county + ", " + state,
-						data: specialArray(countyByState[state][county]),
+						label:	label,
+						//use if for states
+						data: specialArray(arrayToUse),
 						backgroundColor: "rgba(0, 0, 0, 0)",
 						borderColor: "hsla(" + hue + ",90%,39%,0.7)"
 					}
@@ -561,11 +659,19 @@
 			function getLabels() { //Deals with one variable: (1) Whether we are getting all data or data after 5 cases
 				var labels = [];
 				var maxLength = 0;
-				for(var i = 0; i < currentlyShowing.length; i++) {
-					var crtObj = currentlyShowing[i];
-					var county = crtObj.county;
-					var state = crtObj.state;
-					var data = countyByState[state][county];
+				var showingArray = (currentType == "county") ? currentlyShowing : currentlyShowingStates;
+				for(var i = 0; i < showingArray.length; i++) {
+					var crtObj = showingArray[i];
+					var data;
+					if(currentType == "county") {
+						var county = crtObj.county;
+						var state = crtObj.state;
+						data = countyByState[state][county];
+					} else {
+						data = stateData[crtObj];	
+					}
+					
+					//console.log(data);
 					
 					var startIndex; 
 					for(var j = 0; j < data.length; j++) {
@@ -592,7 +698,6 @@
 						labels = dayLabels;
 						break;
 				}
-				
 				return labels;
 			}
 			
@@ -672,7 +777,7 @@
 					}
 				}
 				
-				lastDataPoints.sort(function(a,b){ return b.value - a.value; }); //note: this is a reverse (high to low) sort.
+				lastDataPoints.sort(function(a,b){ return reverse * (b.value - a.value); }); //note: this is a reverse (high to low) sort.
 				
 				for (var i = 0; i < maxToShow; i++) {
 					if(lastDataPoints[i]) {
@@ -692,14 +797,38 @@
 				var stateNames = Object.getOwnPropertyNames(countyByState);
 				var allIndex = 0;
 				console.log("Note: Top data for US will not include counties where yesterday's cases are less than 10.");
-				for(var i = 0; i < stateNames.length; i++) {
-					var state = stateNames[i];
-					var countyNames = Object.getOwnPropertyNames(countyByState[state]);
-					for (var j = 0; j < countyNames.length; j++) {
-						var raw = countyByState[state][countyNames[j]];
+				
+				if(currentType == "county") {
+				
+					for(var i = 0; i < stateNames.length; i++) {
+						var state = stateNames[i];
+						var countyNames = Object.getOwnPropertyNames(countyByState[state]);
+						for (var j = 0; j < countyNames.length; j++) {
+							var raw = countyByState[state][countyNames[j]];
+							var data = specialArray(raw);
+							var lastValue = 0;
+							if(data && data[data.length - 1]) {
+								lastValue = data[data.length - 1];
+							}
+							if(raw[raw.length - 1] < 10) {
+								lastValue = 0;	
+							}
+							lastDataPoints[allIndex] = {
+								value: lastValue,
+								state: state,
+								county: countyNames[j]
+							}
+							allIndex++
+						}
+					}
+					
+				} else {
+					for(var i = 0; i < stateNames.length; i++) {
+						var state = stateNames[i];
+						var raw = stateData[state];
 						var data = specialArray(raw);
 						var lastValue = 0;
-						if(specialArray && data[data.length - 1]) {
+						if(data && data[data.length - 1]) {
 							lastValue = data[data.length - 1];
 						}
 						if(raw[raw.length - 1] < 10) {
@@ -707,24 +836,27 @@
 						}
 						lastDataPoints[allIndex] = {
 							value: lastValue,
-							state: state,
-							county: countyNames[j]
+							state: state
 						}
 						allIndex++
-					}
+					}	
 				}
 					
-				lastDataPoints.sort(function(a,b){ return b.value - a.value; }); //note: this is a reverse (high to low) sort.
+				lastDataPoints.sort(function(a,b){ return reverse * (b.value - a.value); }); //note: this is a reverse (high to low) sort.
 				
 				for (var i = 0; i < maxToShow; i++) {
-					var county = lastDataPoints[i].county;
-					var state = lastDataPoints[i].state;
+					
 					//console.log(county + ", " + state);
-					if(lastDataPoints[i]) {
+					if(lastDataPoints[i] && currentType == "county") {
+						var county = lastDataPoints[i].county;
+						var state = lastDataPoints[i].state;
 						currentlyShowing[i] = {
 							county: county,
 							state: state
 						}
+					} else if(lastDataPoints[i]) {
+						var state = lastDataPoints[i].state;
+						currentlyShowingStates[i] = state;
 					}
 				}
 				
@@ -732,15 +864,128 @@
 			}
 			
 			function clearData() {
-				currentlyShowing = [];
+				if(currentType == "county") {
+					currentlyShowing = [];
+				} else {
+					currentlyShowingStates = [];	
+				}
 				redrawChart();
+			}
+			
+			function pushState(state) {
+				var hasMatch = false;
+				for(var i = 0; i < currentlyShowingStates.length; i++) {
+					if(currentlyShowingStates[i] == state) {
+						hasMatch = true;
+						break;
+					}
+				}
+				if(!hasMatch) {
+					currentlyShowingStates.push(state);
+				}
+			}	
+			
+			function changeStateCounty() {
+				currentType = document.getElementById("stateCounty").value;
+				if(currentType == "state") {
+					pushState(document.getElementById("state").value);
+				}	
+				SCDisable();
+				redrawChart();
+			}
+			
+			function SCDisable() {
+				var disabled = (currentType == "state") ? true : false;
+				document.getElementById("county").disabled = disabled;
+				document.getElementById("gts").disabled = disabled;
+				document.getElementById("gis").disabled = disabled;
+			}
+			
+			function customRank() {
+				document.getElementById("customOverlay").style.display = "block";
+				document.getElementById("crby").innerText = document.getElementById("stateCounty").value;
+			}
+			
+			function customRankGo(type) {
+				var funcName;
+				if(type == "US") { funcName = getTopInUS } else { funcName = getTopInState }
+				var rev = document.getElementById("hilo").value;
+				var num = document.getElementById("num").value;
+				if(num) {
+					doCustomRank(rev,num,funcName);
+					closeCustom();
+				}
+			}
+			
+			function closeCustom() {
+				document.getElementById("customOverlay").style.display = "none";
+			}
+			
+			function doCustomRank(rev,num,funcName) {
+				reverse = rev;
+				maxToShow = num;
+				funcName();
+				reverse = 1;
+				maxToShow = 20;
+			}
+			
+			function showAll(state,county) {
+				var outputSpace = document.getElementById("showAllOutput");
+				deleteChildren("showAllOutput");
+				var title = document.getElementById("allTitle");
+				var label = "Showing all data for ";
+				label += county ? county + ", " + state : state;
+				title.innerText = label;
+				var arrayToUse = county ? countyByState[state][county] : stateData[state];
+				var deltaArray = getDiffs(arrayToUse);
+				var deltaAvgArray = get7DA(deltaArray);
+				var percArray = getPercs(arrayToUse);
+				var percArrayAvg = get7DA(percArray);
+				var table = document.createElement("table");
+				table.classList.add("myTable");
+				var headerRow = document.createElement("tr");
+				var headers = ["Date","Total","\u0394Today","%Growth","\u0394 (7d Avg)","%Growth (7d Avg)"];
+				var tdItems = [dayLabels,arrayToUse,deltaArray,percArray,deltaAvgArray,percArrayAvg];
+				for(var j = 0; j < headers.length; j++) {
+					var th = document.createElement("th");
+					th.innerText = headers[j];
+					headerRow.appendChild(th);
+				}
+				table.appendChild(headerRow);
+				for (var i = (arrayToUse.length - 1); i >= 0; i--) {
+					var row = document.createElement("tr");
+					for(var j = 0; j < headers.length; j++) {
+						var td = document.createElement("td");
+						if(j == 0) {
+							td.innerHTML = "<b><i>" + dayLabels[i] + "</b></i>";
+						} else { td.innerText = tdItems[j][i]; }
+						td.classList.add("right");
+						row.appendChild(td);
+					}
+					table.appendChild(row);
+				}
+				outputSpace.appendChild(table);
+				var bigDiv = document.getElementById("allOutput")
+				bigDiv.style.display = "inline-block";
+				bigDiv.requestFullscreen();
+				
+			}
+			
+			function closeData() {
+				document.getElementById('allOutput').style.display = 'none';
+				document.exitFullscreen();
 			}
 			
         </script>     
 		
 		<style>
+			#allOutput {
+				background-color: white;	
+				overflow: scroll;
+			}
+			
 			#outputArea {
-				height: calc(20vh - 10px);
+				height: calc(25vh - 10px);
 				width: calc(100vw - 10px);
 				background-color: white;
 				overflow: scroll;
@@ -751,14 +996,14 @@
 			}
 			
 			#topBar {
-				height: calc(15vh - 10px);
+				height: calc(5vw + 46px);
 				width: calc(100vw - 10px);
 				padding: 5px;
 			}
 			
 			#chartSpace {
 				width: 99vw; 
-				height: 65vh;
+				height: calc(75vh - 5vw - 46px);
 				background-color: white;
 			}
 			
@@ -795,7 +1040,20 @@
 				}
 			}
 			
-			#topBar button, select, input {
+			#topBar :disabled {
+				display: inline-block;
+  				background-color: white;
+  				border: 2px solid gray;
+  				color: gray;
+				padding: 0px 10px;
+  				text-decoration: none;
+  				display: inline-block;
+  				font-size: 1.8vw;
+				font-family: sans-serif;
+				margin: 2px;
+			}
+			
+			.top {
 				display: inline-block;
   				background-color: white;
   				border: 2px solid black;
@@ -803,14 +1061,20 @@
 				padding: 0px 10px;
   				text-decoration: none;
   				display: inline-block;
-  				font-size: 14px;
+  				font-size: 1.8vw;
 				font-family: sans-serif;
 				margin: 2px;
 			}
 			
-			#topBar button:hover {
+			
+			
+			.top:hover {
 				background-color: #dddddd;
 				transition: 0.1s;
+			}
+			
+			.top:disabled:hover {
+				background-color: #ffffff;
 			}
 			
 			.color {
@@ -830,8 +1094,20 @@
 				width: 255px;
 			}
 			
-			:not(:fullscreen) .fsOnly {
+			/*:not(:fullscreen) .fsOnly {
 				display: none;	
+			}
+			
+			:not(:fullscreen) .fsNot {
+				display: inline-block;	
+			}*/
+			
+			.fsOnly {
+				display: none;	
+			}
+			
+			.fsNot {
+				display: inline-block;	
 			}
 			
 			:fullscreen .fsOnly {
@@ -852,38 +1128,76 @@
 				text-align: right;
 			}
 			
+			#customOverlay {
+				background-color: rgba(100,100,100,0.5);
+				position: absolute;
+				top: 0;
+				left: 0;
+				z-index: 1;
+				width: 100%;
+				height: 100%;
+			}
+			
+			#windowBox {
+				position: absolute;
+				top: calc(50% - 15vw - 5px);
+				left: calc(50% - 30vw - 5px);
+				background-color: white;
+				height: 30vw;
+				width: 60vw;
+				padding: 5px;
+				box-shadow: 0px 5px 15px gray;
+				border-radius: 5px;
+				text-align: center;
+			}
+			
+			#num {
+				width: 5vw;	
+			}
+			#hilo {
+				width: 15vw;	
+			}
+			
+			#verticalAlign {
+				line-height: calc((30vw - 10px) / 3)	
+			}
 		</style>
 		
     </head>
 
     <body onload="bodyLoaded()">
 		<div id="topBar">
-			<input type="text" readonly id="status" value="Importing data from JHU dataset. Please wait..."/>
-			<select id="state" class="firstRow" onchange="changeState()" disabled>
+			<input type="text" class="top" readonly id="status" value="Importing data from JHU dataset. Please wait..."/>
+			<select id="state" class="firstRow top" onchange="changeState()" disabled>
 				<option disabled selected>Please wait...</option>
 			</select>
-			<select id="county" class="firstRow" onchange="changeCounty()" disabled>
+			<select id="county" class="firstRow top" onchange="changeCounty()" disabled>
 				<option disabled selected>Select a state first.</option>
 			</select><br/>
-			<select id="dataSelect" onchange="redrawChart()">
+			<select id="dataSelect" class="top" onchange="redrawChart()">
 				<option value="DaysSince5" selected>Days Since 5 Cases</option>
 				<option value="All">All</option>
 			</select>	
-			<select id="dataType" onchange="redrawChart()">
+			<select id="dataType" class="top" onchange="redrawChart()">
 				<option value="TotalCases" selected>Total Cases</option>
 				<option value="NewDay">New Cases / Day</option>
 				<option value="New7Day">New Cases (7 Day Avg)</option>
 				<option value="PercentDay">% Growth</option>
 				<option value="Percent7DA">% Growth (7 Day Avg)</option>
 			</select>
-			<select id="graphType" onchange="redrawChart()">
+			<select class="top" id="graphType" onchange="redrawChart()">
 				<option value="linear" selected>Linear</option>
 				<option value="logarithmic">Logarithmic</option>
 			</select>	
-			<button onclick="getTopInState()" class="sndRowBtn">State Top 20</button>
-			<button onclick="getTopInUS()" class="sndRowBtn">US Top 20</button>
-			<button onclick="clearData()">Clear</button>
-			<button onclick="window.location.reload();">Reset</button>
+			<button id="gts" onclick="getTopInState()" class="sndRowBtn top">State Top 20</button>
+			<button onclick="getTopInUS()" class="sndRowBtn top">US Top 20</button>
+			<select id="stateCounty" onchange="changeStateCounty()" class="top">
+				<option value="county" selected>By County</option>
+				<option value="state">By State</option>
+			</select>
+			<button onclick="customRank()" class="top" >Custom Rank</button>
+			<button onclick="clearData()" class="top" >Clear</button>
+			<button onclick="window.location.reload();" class="top" >Reset</button>
 		</div>
 		<div id="chartSpace">
 			<button onclick="document.getElementById('chartSpace').requestFullscreen()" class="fsNot">Expand Chart (full screen)</button>
@@ -895,7 +1209,29 @@
 			<button onclick="document.getElementById('outputArea').requestFullscreen()" class="fsNot">Expand List (full screen)</button>
 			<button onclick="document.exitFullscreen()" class="fsOnly">Close full screen</button>
 			<div id="output"></div>
-		</div>		
+		</div>
+		<div id="customOverlay" hidden>
+			<div id="windowBox">
+				<div id="verticalAlign">
+					CUSTOM RANKING by <label id="crby"></label><br/>
+					Get 
+					<select id="hilo">
+						<option value=1 selected>Highest</option>
+						<option value=-1>Lowest</option>
+					</select>
+					<input id="num" type="number" />
+					locations<br/>
+					<button id="gis" onclick="customRankGo('state')">Go (in state)</button>
+					<button onclick="customRankGo('US')">Go (in US)</button>
+					<button onclick="closeCustom()">Cancel</button>
+				</div>
+			</div>
+		</div>
+		<div id="allOutput" class="fsOnly">
+			<button onclick="closeData()">Close full screen</button>
+			<br/><br/><label id="allTitle"></label><br/><br/>
+			<div id="showAllOutput"></div>
+		</div>
     </body>
 
 </html>
