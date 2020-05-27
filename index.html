@@ -970,7 +970,7 @@
 								suffix += " /day";	
 							}
 							var plusMinus = "+";
-							if(tdItems[j][i] < 0) { plusMinus = "" }
+							if(tdItems[j][i] < 0 || j == 1) { plusMinus = "" }
 							td.innerText = plusMinus + tdItems[j][i] + suffix; 
 						}
 						td.classList.add("right");
