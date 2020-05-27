@@ -432,12 +432,12 @@
 					if(caseAvgToday < 0) { plusMinus2 = ""; }
 					
 					td = document.createElement("td");
-					td.innerText = plusMinus2 + caseAvgToday;
+					td.innerText = plusMinus2 + caseAvgToday + " /day";
 					td.classList.add("right");
 					row.appendChild(td);
 					
 					td = document.createElement("td");
-					td.innerText = plusMinus2 + percAvgToday + "%";
+					td.innerText = plusMinus2 + percAvgToday + "% /day";
 					td.classList.add("right");
 					row.appendChild(td);
 					
@@ -958,7 +958,20 @@
 						var td = document.createElement("td");
 						if(j == 0) {
 							td.innerHTML = "<b><i>" + dayLabels[i] + "</b></i>";
-						} else { td.innerText = tdItems[j][i]; }
+						} else { 
+							var suffix;
+							if(j == 1 || j == 2 || j == 4) {
+								suffix = "";
+							} else {
+								suffix = "%";	
+							}
+							if(j > 3) {
+								suffix += " /day";	
+							}
+							var plusMinus = "+";
+							if(tdItems[j][i] < 0) { plusMinus = "" }
+							td.innerText = plusMinus + tdItems[j][i] + suffix; 
+						}
 						td.classList.add("right");
 						row.appendChild(td);
 					}
