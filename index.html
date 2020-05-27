@@ -792,13 +792,13 @@
 			}
 			
 			function getTopInUS() {
-				currentlyShowing = [];
 				var lastDataPoints = [];
 				var stateNames = Object.getOwnPropertyNames(countyByState);
 				var allIndex = 0;
 				console.log("Note: Top data for US will not include counties where yesterday's cases are less than 10.");
 				
 				if(currentType == "county") {
+					currentlyShowing = [];
 				
 					for(var i = 0; i < stateNames.length; i++) {
 						var state = stateNames[i];
@@ -823,6 +823,7 @@
 					}
 					
 				} else {
+					currentlyShowingStates = [];
 					for(var i = 0; i < stateNames.length; i++) {
 						var state = stateNames[i];
 						var raw = stateData[state];
