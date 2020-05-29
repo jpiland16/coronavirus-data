@@ -3,7 +3,7 @@
 <html>
     <head>
         <meta http-equiv="content-type" content="text/html; charset=utf-8" />
-        <title>webQuery Data Analysis</title>
+        <title>COVID-19 Data Analysis by County</title>
 		
 		<script src="https://cdn.jsdelivr.net/npm/chart.js@2.8.0"></script>
         <script language="javascript" type="text/javascript">
@@ -20,7 +20,9 @@
 			var maxToShow = 20;
 			var reverse = 1;
 			var stateData = {};
-			
+			var isTop = "";
+			var loaded = false;
+			var fullscreenopen = false;
 			var preset = false;
 			
 			var originalController = Chart.controllers.line;
@@ -31,18 +33,19 @@
 			  	}
 			});
 			
-			var paramString = window.location.href.match(/(?<=\?).+/);
-			var params = [];
-			if (paramString) { params = paramString.toString().split("&"); }
-			var parameterObject = {};
-			for(var i = 0; i < params.length; i++) {
-				var paramSplit = params[i].split("=");
-				if(paramSplit[1]) {
-					parameterObject[paramSplit[0]] = paramSplit[1];
-				}
-			}
+			
 			
 			function getParam(name) {
+				var paramString = decodeURI(window.location.href.match(/(?<=\?).+/));
+				var params = [];
+				if (paramString) { params = paramString.toString().split("&"); }
+				var parameterObject = {};
+				for(var i = 0; i < params.length; i++) {
+					var paramSplit = params[i].split("=");
+					if(paramSplit[1]) {
+						parameterObject[paramSplit[0]] = paramSplit[1];
+					}
+				}
 				if(parameterObject && parameterObject[name]) {
 					return parameterObject[name];
 				} else {
@@ -154,9 +157,12 @@
 			function showRegOut(text) {
 				//print(text);	
 			}
-		
 			
-			function bodyLoaded() {
+			
+			function checkParams() {
+				
+				currentlyShowing = [];
+				currentlyShowingStates = [];
 				
 				if(getParam("preset") == "true") {
 					preset = true;
@@ -167,6 +173,79 @@
 					document.getElementById("stateCounty").value = "state";
 					SCDisable();
 				}
+				
+				if(getParam("x") == "All") {						
+					document.getElementById("dataSelect").value = "All";
+				} else {
+					document.getElementById("dataSelect").value = "DaysSince5";
+				}
+				
+				var dataType = getParam("dataType");
+				if(dataType) {						
+					document.getElementById("dataType").value = dataType;
+				} 
+				
+				var scale = getParam("scale");
+				if(scale) {						
+					document.getElementById("graphType").value = scale;
+				} 
+				
+				var counties = getParam("counties");
+				
+				if(counties) {
+					var split = counties.split(",");
+					for (var i = 0; i < split.length; i++) {
+						var stateCtySplit = split[i].split(".");
+						if(stateCtySplit[1]) {
+							currentlyShowing[i] = {};
+							currentlyShowing[i].state = stateCtySplit[0];
+							currentlyShowing[i].county = stateCtySplit[1];	
+						}
+					}
+				}
+				
+				var states = getParam("states") 
+				
+				if(states) {
+					var split = states.split(",");
+					for (var i = 0; i < split.length; i++) {
+						currentlyShowingStates[i] = split[i];
+					}	
+				}
+				
+				
+				
+				if(loaded) {
+					
+					var isTopParam = getParam("top");
+					isTop = isTopParam;
+				
+					if(isTopParam) {
+						var split = isTopParam.split(",");
+						var type = split[2];
+						if(type == "UnitedStates") {
+							console.log("getting top in US");
+							maxToShow = split[1];
+							reverse = split[0];
+							getTopInUS();
+						} else if(type) {
+							document.getElementById("state").value = type;
+							maxToShow = split[1];
+							reverse = split[0];
+							getTopInState();
+						}
+					}
+					
+					redrawChart();	
+				}
+			}
+			
+			
+			function bodyLoaded() {
+				
+				window.addEventListener("popstate",checkParams)
+				
+				checkParams();
 				
 				getData("https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv", function dataLoaded(data) {
 					if(data) {
@@ -213,6 +292,25 @@
 						dayLabels = coronaData[0].slice(11);
 						populateSelects();
 						
+						var isTop = getParam("top");
+				
+						if(isTop) {
+							var split = isTop.split(",");
+							var type = split[2];
+							if(type == "UnitedStates") {
+								maxToShow = split[1];
+								reverse = split[0];
+								getTopInUS();
+							} else if(type) {
+								document.getElementById("state").value = type;
+								maxToShow = split[1];
+								reverse = split[0];
+								getTopInState();
+							}
+						}
+						
+						redrawChart();
+						loaded = true;
 						
 						
 					} else {
@@ -228,6 +326,7 @@
 				disabledOption.innerText = "Choose a state...";
 				disabledOption.selected = true;
 				disabledOption.disabled = true;
+				disabledOption.value = 0;
 				stateSelect.appendChild(disabledOption);
 				
 				
@@ -270,6 +369,7 @@
 				disabledOption.innerText = "Choose a county...";
 				disabledOption.selected = true;
 				disabledOption.disabled = true;
+				disabledOption.value = 0;
 				countySelect.appendChild(disabledOption);
 				
 				var selectedState = document.getElementById("state").value;
@@ -295,6 +395,7 @@
 			}
 			
 			function pushLine(county,state) {
+				isTop = "";
 				var hasMatch = false;
 				for(var i = 0; i < currentlyShowing.length; i++) {
 					if (currentlyShowing[i].county == county && currentlyShowing[i].state == state) {
@@ -513,6 +614,7 @@
 			}
 			
 			function removeLine(county,state) {
+				isTop = "";
 				for(var i = 0; i < currentlyShowing.length; i++) {
 					if (currentlyShowing[i].county == county && currentlyShowing[i].state == state) {
 						currentlyShowing.splice(i,1);
@@ -523,6 +625,7 @@
 			}
 			
 			function removeState(state) {
+				isTop = "";
 				for(var i = 0; i < currentlyShowingStates.length; i++) {
 					if (currentlyShowingStates[i] == state) {
 						currentlyShowingStates.splice(i,1);
@@ -730,10 +833,18 @@
 								top: 10,
 								bottom: 10
 							}
-						}
+						},
+						animation: {
+							duration: 50
+						},
+						hover: {
+							animationDuration: 50	
+						},
+						responsiveAnimationDuration: 0
 					}
 				});	
 				showLegend();
+				changeURL();
 			}
 			
 			function changeCounty() {
@@ -758,6 +869,10 @@
 				currentlyShowing = [];
 				var lastDataPoints = [];
 				var state = document.getElementById("state").value;
+				isTop = reverse + "," + maxToShow + "," + state;
+				//console.log(state);
+				if(state != "0") {
+				
 				var countyNames = Object.getOwnPropertyNames(countyByState[state]);
 				console.log("Note: Top data for states will not include counties where yesterday's cases are less than 5.");
 				for (var i = 0; i < countyNames.length; i++) {
@@ -789,9 +904,12 @@
 				}
 				
 				redrawChart();
+					
+				}
 			}
 			
 			function getTopInUS() {
+				isTop = reverse + "," + maxToShow + "," + "UnitedStates";
 				var lastDataPoints = [];
 				var stateNames = Object.getOwnPropertyNames(countyByState);
 				var allIndex = 0;
@@ -874,6 +992,7 @@
 			}
 			
 			function pushState(state) {
+				isTop = "";
 				var hasMatch = false;
 				for(var i = 0; i < currentlyShowingStates.length; i++) {
 					if(currentlyShowingStates[i] == state) {
@@ -888,9 +1007,13 @@
 			
 			function changeStateCounty() {
 				currentType = document.getElementById("stateCounty").value;
-				if(currentType == "state") {
-					pushState(document.getElementById("state").value);
-				}	
+				var state = document.getElementById("state").value;
+				var county = document.getElementById("county").value;
+				if(currentType == "state" && state != "0") {
+					pushState(state);
+				} else if(currentType == "county" && county != "0") {
+					pushLine(county,state);	
+				}
 				SCDisable();
 				redrawChart();
 			}
@@ -903,8 +1026,14 @@
 			}
 			
 			function customRank() {
+				showTopDiv("rankDiv");
+			}
+			
+			function showTopDiv(name) {
 				document.getElementById("customOverlay").style.display = "block";
+				setTimeout(() => { document.getElementById("customOverlay").style.opacity = 1;}, this.animationDelay + 20);   
 				document.getElementById("crby").innerText = document.getElementById("stateCounty").value;
+				document.getElementById(name).style.display = "block";
 			}
 			
 			function customRankGo(type) {
@@ -919,8 +1048,22 @@
 			}
 			
 			function closeCustom() {
-				document.getElementById("customOverlay").style.display = "none";
+				var element = document.getElementById("customOverlay"); 
+				element.style.opacity = 0; 
+				setTimeout(function() { hideElement() }, 200); 
+				var parent = element.firstElementChild;
+				for (var i = 0; i < parent.children.length; i++) {
+					parent.children[i].style.display = "none";
+				}
 			}
+			
+			function showHelp() {
+				showTopDiv("help");	
+			}
+			
+			function hideElement() {
+				document.getElementById("customOverlay").style.display = "none";
+			}	
 			
 			function doCustomRank(rev,num,funcName) {
 				reverse = rev;
@@ -980,6 +1123,7 @@
 				}
 				outputSpace.appendChild(table);
 				var bigDiv = document.getElementById("allOutput")
+				fullscreenopen = true;
 				bigDiv.style.display = "inline-block";
 				bigDiv.requestFullscreen();
 				
@@ -988,6 +1132,91 @@
 			function closeData() {
 				document.getElementById('allOutput').style.display = 'none';
 				document.exitFullscreen();
+			}
+			
+			function changeURL(reset) {
+				//console.log(window.location.href);	
+				var href = window.location.href;
+				var split = href.split("?");
+				var baseURL = split[0];
+				
+				var counties = "";
+				
+				for(var i = 0; i < currentlyShowing.length; i++) {
+					if(i == 0) {
+						counties = "&counties="
+					}
+					counties += currentlyShowing[i].state + "." + currentlyShowing[i].county;
+					if(i + 1 != currentlyShowing.length) {
+						counties += ",";
+					}
+				}
+				
+				var states = "";
+				
+				for(var i = 0; i < currentlyShowingStates.length; i++) {
+					if(i == 0) {
+						states = "&states="
+					}
+					states += currentlyShowingStates[i];
+					if(i + 1 != currentlyShowingStates.length) {
+						states += ",";
+					}
+				}
+				
+				var locations = counties + states;
+				
+				locations = isTop ? ("&top=" + isTop) : locations;
+				
+				var xAxisType = document.getElementById("dataSelect").value;
+				var dataType =  document.getElementById("dataType").value;
+				var scale = document.getElementById("graphType").value;
+				
+				var addition = "?by=" + currentType + "&x=" + xAxisType + "&dataType=" + dataType + "&scale=" + scale + locations;
+				addition = reset ? "?by=county&x=DaysSince5&dataType=TotalCases&scale=linear" : addition;
+				var newURL = encodeURI(baseURL + addition);
+				//console.log(window.location.href == newURL);
+				if(window.location.href != newURL) {
+					window.history.pushState("Change Graph", "Change Graph", newURL);
+					//console.log("Rewriting URL");
+					//console.log(newURL + " does not equal " + window.location.href);
+				}
+			}
+			
+			window.onclick = function(event) {
+				var box = document.getElementById("customOverlay")
+  				if (event.target == box) {
+    				closeCustom();
+  				}
+			}
+			
+			document.onkeydown = function(event) {
+				if(event.keyCode == 27) {
+					closeCustom();	
+				}
+			}
+			
+			document.addEventListener('fullscreenchange',fsChange);
+			
+			function fsChange() {
+				//console.log("AHA!!!");
+				var hideInFS = document.getElementsByClassName("fsNot");
+				var showInFS = document.getElementsByClassName("fsOnly");
+				for(var i = 0; i < showInFS.length; i++) {
+					showInFS[i].style.display = fullscreenopen ? "block" : "none";
+				}
+				
+				fullscreenopen = !fullscreenopen;
+			}
+			
+			function fsChart() {
+				document.getElementById('chartSpace').requestFullscreen();
+				fullscreenopen = true;
+			}
+			
+			function fsData() {
+				document.getElementById('outputArea').requestFullscreen();
+				fullscreenopen = true;
 			}
 			
         </script>     
@@ -1059,12 +1288,6 @@
   				background-color: white;
   				border: 2px solid gray;
   				color: gray;
-				padding: 0px 10px;
-  				text-decoration: none;
-  				display: inline-block;
-  				font-size: 1.8vw;
-				font-family: sans-serif;
-				margin: 2px;
 			}
 			
 			.top {
@@ -1075,20 +1298,35 @@
 				padding: 0px 10px;
   				text-decoration: none;
   				display: inline-block;
-  				font-size: 1.8vw;
 				font-family: sans-serif;
 				margin: 2px;
 			}
 			
-			
-			
 			.top:hover {
-				background-color: #dddddd;
+				background-color: #f2fbff;
 				transition: 0.1s;
 			}
 			
+			.top:focus {
+				background-color: #f2fbff;
+				transition: 0.1s;
+			}
+			
+			
 			.top:disabled:hover {
 				background-color: #ffffff;
+			}
+			
+			@media (max-width: 777px) {
+				.top {
+					font-size: 1.8vw;	
+				}
+			}
+			
+			@media (min-width: 777px) {
+				.top {
+					font-size: 14px;	
+				}
 			}
 			
 			.color {
@@ -1150,6 +1388,8 @@
 				z-index: 1;
 				width: 100%;
 				height: 100%;
+				opacity: 0;
+				transition: opacity 0.2s;
 			}
 			
 			#windowBox {
@@ -1175,6 +1415,14 @@
 			#verticalAlign {
 				line-height: calc((30vw - 10px) / 3)	
 			}
+			#help {
+				height: 100%;
+				overflow: scroll;	
+				text-align: left;
+			}
+			h2 {
+				text-align: center;	
+			}
 		</style>
 		
     </head>
@@ -1182,11 +1430,11 @@
     <body onload="bodyLoaded()">
 		<div id="topBar">
 			<input type="text" class="top" readonly id="status" value="Importing data from JHU dataset. Please wait..."/>
-			<select id="state" class="firstRow top" onchange="changeState()" disabled>
+			<select id="state" class="firstRow top topSelect" onchange="changeState()" disabled>
 				<option disabled selected>Please wait...</option>
 			</select>
 			<select id="county" class="firstRow top" onchange="changeCounty()" disabled>
-				<option disabled selected>Select a state first.</option>
+				<option disabled selected value="0">Select a state first.</option>
 			</select><br/>
 			<select id="dataSelect" class="top" onchange="redrawChart()">
 				<option value="DaysSince5" selected>Days Since 5 Cases</option>
@@ -1199,45 +1447,61 @@
 				<option value="PercentDay">% Growth</option>
 				<option value="Percent7DA">% Growth (7 Day Avg)</option>
 			</select>
-			<select class="top" id="graphType" onchange="redrawChart()">
+			<select class="top topSelect" id="graphType" onchange="redrawChart()">
 				<option value="linear" selected>Linear</option>
 				<option value="logarithmic">Logarithmic</option>
 			</select>	
 			<button id="gts" onclick="getTopInState()" class="sndRowBtn top">State Top 20</button>
 			<button onclick="getTopInUS()" class="sndRowBtn top">US Top 20</button>
-			<select id="stateCounty" onchange="changeStateCounty()" class="top">
+			<select id="stateCounty" onchange="changeStateCounty()" class="top topSelect">
 				<option value="county" selected>By County</option>
 				<option value="state">By State</option>
 			</select>
 			<button onclick="customRank()" class="top" >Custom Rank</button>
 			<button onclick="clearData()" class="top" >Clear</button>
-			<button onclick="window.location.reload();" class="top" >Reset</button>
+			<button onclick="changeURL(true);window.location.reload();" class="top" >Reset</button>
+			<button onclick="showHelp()" class="top">HELP</button>
 		</div>
 		<div id="chartSpace">
-			<button onclick="document.getElementById('chartSpace').requestFullscreen()" class="fsNot">Expand Chart (full screen)</button>
+			<button onclick="fsChart()" class="fsNot">Expand Chart (full screen)</button>
 			<button onclick="document.exitFullscreen()" class="fsOnly">Close full screen</button>
 			<canvas id="myChart">
 			</canvas>
 		</div>
 		<div id="outputArea">
-			<button onclick="document.getElementById('outputArea').requestFullscreen()" class="fsNot">Expand List (full screen)</button>
+			<button onclick="fsData()" class="fsNot">Expand List (full screen)</button>
 			<button onclick="document.exitFullscreen()" class="fsOnly">Close full screen</button>
 			<div id="output"></div>
 		</div>
 		<div id="customOverlay" hidden>
 			<div id="windowBox">
-				<div id="verticalAlign">
-					CUSTOM RANKING by <label id="crby"></label><br/>
-					Get 
-					<select id="hilo">
-						<option value=1 selected>Highest</option>
-						<option value=-1>Lowest</option>
-					</select>
-					<input id="num" type="number" />
-					locations<br/>
-					<button id="gis" onclick="customRankGo('state')">Go (in state)</button>
-					<button onclick="customRankGo('US')">Go (in US)</button>
-					<button onclick="closeCustom()">Cancel</button>
+				<div id="rankDiv" style="display: none">
+					<div id="verticalAlign">
+						CUSTOM RANKING by <label id="crby"></label><br/>
+						Get 
+						<select id="hilo">
+							<option value=1 selected>Highest</option>
+							<option value=-1>Lowest</option>
+						</select>
+						<input id="num" type="number" />
+						locations<br/>
+						<button id="gis" onclick="customRankGo('state')">Go (in state)</button>
+						<button onclick="customRankGo('US')">Go (in US)</button>
+						<button onclick="closeCustom()">Cancel</button>
+					</div>
+				</div>
+				<div id="help" style="display: none">
+					<h2>ABOUT THIS SITE</h2>
+					<p>NOTE: This site has been confirmed to work on Google Chrome and Microsoft Edge (Chromium) - latest versions. Other browsers may not be supported.</p>
+					<p>This site displays information about COVID-19 cases by county and state level. Data is obtained from <a href="https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv" target="_blank">Johns Hopkins University on GitHub.</a></p>
+					<p>Access to this data is performed through Cross-Site Scripting made available through a demo at <a href="https://cors-anywhere.herokuapp.com" target="_blank">HerokuApp</a>.</p>
+					<p>To get started, select a state and a county. Data will be shown for that county. Selecting another county will add that county to the graph. Counties can be removed at anytime using the list at the bottom of the page.</p>
+					<p>The y-axis can be set to be linear or logarithmic. The x-axis can be offset for each dataset showing the time since 5 cases were reported, or it can show all available data.</p>
+					<p>To view data by state, select "By State" rather than "By County." States can be added and removed in the same manner as counties.</p>
+					<p>Metrics available to analyze both states and counties include Total Cases, New Cases per day, New Cases per day (7-day rolling average), Percent Growth per day, and Percent Growth per day (7-day rolling average).</p>
+					<p>To view the top 20 states/counties based on the <i>current metric</i>, use the State Top 20 option to show the top 20 <u>counties</u> in the selected <u>state</u>, or use the US Top 20 option to show the top 20 <u>states or counties</u> in the United States. Note that data for counties with low numbers of cases may not be included.</p>
+					<p>To create a custom ranking, with the option to choose lowest (rather than highest) data, use the Custom Rank option.</p>
+					<p>The URL in your address bar is automatically updated with the options you have selected. To save your current layout, simply bookmark or favorite this page in your browser.</p>
 				</div>
 			</div>
 		</div>
