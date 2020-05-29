@@ -21,6 +21,7 @@
 			var reverse = 1;
 			var stateData = {};
 			var isTop = "";
+			var topType = "";
 			var loaded = false;
 			var fullscreenopen = false;
 			var preset = false;
@@ -161,6 +162,11 @@
 			
 			function checkParams() {
 				
+				var topInStateBtn = document.getElementById("gts");
+				var customTISBtn = document.getElementById("gis");
+				topInStateBtn.disabled = true;
+				customTISBtn.disabled = true;
+				
 				currentlyShowing = [];
 				currentlyShowingStates = [];
 				
@@ -171,7 +177,11 @@
 				if(getParam("by") == "state") {
 					currentType = "state";
 					document.getElementById("stateCounty").value = "state";
-					SCDisable();
+					//SCDisable();
+				} else if(getParam("by") == "county") {
+					currentType = "county";
+					document.getElementById("stateCounty").value = "county";
+					//SCDisable();
 				}
 				
 				if(getParam("x") == "All") {						
@@ -216,15 +226,15 @@
 				
 				
 				if(loaded) {
-					
+					SCDisable();
 					var isTopParam = getParam("top");
-					isTop = isTopParam;
-				
+					isTop = isTopParam ? isTopParam : "";
+					showTopSelect();
 					if(isTopParam) {
 						var split = isTopParam.split(",");
 						var type = split[2];
 						if(type == "UnitedStates") {
-							console.log("getting top in US");
+							//console.log("getting top in US");
 							maxToShow = split[1];
 							reverse = split[0];
 							getTopInUS();
@@ -242,6 +252,12 @@
 			
 			
 			function bodyLoaded() {
+				
+				var waitBtns = ["dataSelect","dataType","graphType","gtu","stateCounty","customBtn","clearBtn","resetBtn"];
+				
+				for(var i = 0; i < waitBtns.length; i++) {
+					document.getElementById(waitBtns[i]).disabled = true;	
+				}
 				
 				window.addEventListener("popstate",checkParams)
 				
@@ -292,12 +308,15 @@
 						dayLabels = coronaData[0].slice(11);
 						populateSelects();
 						
-						var isTop = getParam("top");
-				
-						if(isTop) {
-							var split = isTop.split(",");
+						var isTopParam = getParam("top");
+						//isTop = isTopParam; //may need to remove?
+						showTopSelect();
+						
+						if(isTopParam) {
+							var split = isTopParam.split(",");
 							var type = split[2];
 							if(type == "UnitedStates") {
+								console.log("getting top in US");
 								maxToShow = split[1];
 								reverse = split[0];
 								getTopInUS();
@@ -310,6 +329,11 @@
 						}
 						
 						redrawChart();
+						
+						for(var i = 0; i < waitBtns.length; i++) {
+							document.getElementById(waitBtns[i]).disabled = false;	
+						}
+						
 						loaded = true;
 						
 						
@@ -357,6 +381,7 @@
 			}
 			
 			function changeState() {
+				SCDisable();
 				if(currentType == "state") {
 					pushState(document.getElementById("state").value);
 					redrawChart();
@@ -396,6 +421,7 @@
 			
 			function pushLine(county,state) {
 				isTop = "";
+				showTopSelect();
 				var hasMatch = false;
 				for(var i = 0; i < currentlyShowing.length; i++) {
 					if (currentlyShowing[i].county == county && currentlyShowing[i].state == state) {
@@ -615,6 +641,7 @@
 			
 			function removeLine(county,state) {
 				isTop = "";
+				showTopSelect();
 				for(var i = 0; i < currentlyShowing.length; i++) {
 					if (currentlyShowing[i].county == county && currentlyShowing[i].state == state) {
 						currentlyShowing.splice(i,1);
@@ -626,6 +653,7 @@
 			
 			function removeState(state) {
 				isTop = "";
+				showTopSelect();
 				for(var i = 0; i < currentlyShowingStates.length; i++) {
 					if (currentlyShowingStates[i] == state) {
 						currentlyShowingStates.splice(i,1);
@@ -866,10 +894,12 @@
             }
 			
 			function getTopInState() {
+				topType = currentType;
 				currentlyShowing = [];
 				var lastDataPoints = [];
 				var state = document.getElementById("state").value;
 				isTop = reverse + "," + maxToShow + "," + state;
+				showTopSelect();
 				//console.log(state);
 				if(state != "0") {
 				
@@ -910,6 +940,8 @@
 			
 			function getTopInUS() {
 				isTop = reverse + "," + maxToShow + "," + "UnitedStates";
+				topType = currentType;
+				showTopSelect();
 				var lastDataPoints = [];
 				var stateNames = Object.getOwnPropertyNames(countyByState);
 				var allIndex = 0;
@@ -917,7 +949,7 @@
 				
 				if(currentType == "county") {
 					currentlyShowing = [];
-				
+					
 					for(var i = 0; i < stateNames.length; i++) {
 						var state = stateNames[i];
 						var countyNames = Object.getOwnPropertyNames(countyByState[state]);
@@ -983,16 +1015,19 @@
 			}
 			
 			function clearData() {
+				isTop = "";
 				if(currentType == "county") {
 					currentlyShowing = [];
 				} else {
 					currentlyShowingStates = [];	
 				}
+				showTopSelect();
 				redrawChart();
 			}
 			
 			function pushState(state) {
 				isTop = "";
+				showTopSelect();
 				var hasMatch = false;
 				for(var i = 0; i < currentlyShowingStates.length; i++) {
 					if(currentlyShowingStates[i] == state) {
@@ -1014,6 +1049,7 @@
 				} else if(currentType == "county" && county != "0") {
 					pushLine(county,state);	
 				}
+				showTopSelect();
 				SCDisable();
 				redrawChart();
 			}
@@ -1023,6 +1059,10 @@
 				document.getElementById("county").disabled = disabled;
 				document.getElementById("gts").disabled = disabled;
 				document.getElementById("gis").disabled = disabled;
+				if(document.getElementById("state").value == "0") {
+					document.getElementById("gis").disabled = true;
+					document.getElementById("gts").disabled = true;
+				}
 			}
 			
 			function customRank() {
@@ -1166,7 +1206,7 @@
 				
 				var locations = counties + states;
 				
-				locations = isTop ? ("&top=" + isTop) : locations;
+				locations = (isTop && currentType == topType) ? ("&top=" + isTop) : locations;
 				
 				var xAxisType = document.getElementById("dataSelect").value;
 				var dataType =  document.getElementById("dataType").value;
@@ -1175,11 +1215,14 @@
 				var addition = "?by=" + currentType + "&x=" + xAxisType + "&dataType=" + dataType + "&scale=" + scale + locations;
 				addition = reset ? "?by=county&x=DaysSince5&dataType=TotalCases&scale=linear" : addition;
 				var newURL = encodeURI(baseURL + addition);
-				//console.log(window.location.href == newURL);
-				if(window.location.href != newURL) {
+				newURL = newURL.replace(/'/g,"%27");
+				var theyAreEqual = (window.location.href == newURL)
+				//console.log(theyAreEqual);
+				if(!theyAreEqual) {
+					//console.log(newURL);
+					//console.log(window.location.href);
 					window.history.pushState("Change Graph", "Change Graph", newURL);
 					//console.log("Rewriting URL");
-					//console.log(newURL + " does not equal " + window.location.href);
 				}
 			}
 			
@@ -1205,6 +1248,9 @@
 				for(var i = 0; i < showInFS.length; i++) {
 					showInFS[i].style.display = fullscreenopen ? "block" : "none";
 				}
+				for(var i = 0; i < hideInFS.length; i++) {
+					hideInFS[i].style.display = fullscreenopen ? "none" : "block";
+				}
 				
 				fullscreenopen = !fullscreenopen;
 			}
@@ -1219,9 +1265,40 @@
 				fullscreenopen = true;
 			}
 			
+			function showTopSelect() {
+				//console.log(isTop);
+				var customBtn = document.getElementById("customBtn");
+				var gtsBtn = document.getElementById("gts");
+				var gtuBtn = document.getElementById("gtu");
+				var activeColor = "#85c8ff";
+				var inactiveColor = "#ffffff";
+				customBtn.style.backgroundColor = inactiveColor;
+				gtsBtn.style.backgroundColor = inactiveColor;
+				gtuBtn.style.backgroundColor = inactiveColor;
+				if(isTop) {
+					var split = isTop.split(",");
+					if(topType == currentType) {
+						if(split[2] && split[1] == "20" && split[0] == "1") {
+							if(split[2] == "UnitedStates") {
+								gtuBtn.style.backgroundColor = activeColor;								
+							} else {
+								gtsBtn.style.backgroundColor = activeColor;
+							}
+						} else {
+							customBtn.style.backgroundColor = activeColor;	
+						}
+					}
+				}
+			}
+			
         </script>     
 		
 		<style>
+			#stateCounty {
+				font-weight: bold;
+				text-transform: uppercase;
+			}
+			
 			#allOutput {
 				background-color: white;	
 				overflow: scroll;
@@ -1453,14 +1530,14 @@
 				<option value="logarithmic">Logarithmic</option>
 			</select>	
 			<button id="gts" onclick="getTopInState()" class="sndRowBtn top">State Top 20</button>
-			<button onclick="getTopInUS()" class="sndRowBtn top">US Top 20</button>
+			<button id="gtu" onclick="getTopInUS()" class="sndRowBtn top">US Top 20</button>
 			<select id="stateCounty" onchange="changeStateCounty()" class="top topSelect">
 				<option value="county" selected>By County</option>
 				<option value="state">By State</option>
 			</select>
-			<button onclick="customRank()" class="top" >Custom Rank</button>
-			<button onclick="clearData()" class="top" >Clear</button>
-			<button onclick="changeURL(true);window.location.reload();" class="top" >Reset</button>
+			<button id="customBtn" onclick="customRank()" class="top" >Custom Rank</button>
+			<button id="clearBtn" onclick="clearData()" class="top" >Clear</button>
+			<button id="resetBtn" onclick="changeURL(true);window.location.reload();" class="top" >Reset</button>
 			<button onclick="showHelp()" class="top">HELP</button>
 		</div>
 		<div id="chartSpace">
@@ -1503,6 +1580,7 @@
 					<p>To view the top 20 states/counties based on the <i>current metric</i>, use the State Top 20 option to show the top 20 <u>counties</u> in the selected <u>state</u>, or use the US Top 20 option to show the top 20 <u>states or counties</u> in the United States. Note that data for counties with low numbers of cases may not be included.</p>
 					<p>To create a custom ranking, with the option to choose lowest (rather than highest) data, use the Custom Rank option.</p>
 					<p>The URL in your address bar is automatically updated with the options you have selected. To save your current layout, simply bookmark or favorite this page in your browser.</p>
+					<p>More information is available at <a href="https://github.com/jpiland16/coronavirus-data/" target="_blank">GitHub</a>.</p>
 				</div>
 			</div>
 		</div>
