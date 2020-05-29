@@ -383,6 +383,12 @@
 			
 			function changeState() {
 				SCDisable();
+				var stateSelect = document.getElementById("state");
+				var stateInf = stateSelect.value == "0" ? "(none selected)" : stateSelect.value;
+				var selectToRankBy = document.getElementById("dataType");
+				var stateTTP = "Get the top 20 counties/territories in " + stateInf + " ranked by " + selectToRankBy.children[selectToRankBy.selectedIndex].innerText;
+				document.getElementById("gts").title = stateTTP;
+				
 				if(currentType == "state") {
 					pushState(document.getElementById("state").value);
 					redrawChart();
