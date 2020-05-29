@@ -1,6 +1,6 @@
 # coronavirus-data
-Graphical analysis of coronavirus data by county (US)
-Available at <a href="https://jpiland16.github.io/coronavirus-data/" target="_blank">GitHub Pages</a>
+Graphical analysis of coronavirus data by county (US).
+<h3><a href="https://jpiland16.github.io/coronavirus-data/" target="_blank"> &gt;&gt; Visit Page </a></h3>
 
 <h2>About this project</h2>
 
