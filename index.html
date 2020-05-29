@@ -83,8 +83,9 @@
 		
 		// Use CORS-Anywhere to scrape a web page //
 			
-		var cors_api_url = 'https://cors-anywhere.herokuapp.com/';
-  		function doCORSRequest(options, printResult) {
+		//var cors_api_url = 'https://cors-anywhere.herokuapp.com/';
+  		var cors_api_url = "";
+		function doCORSRequest(options, printResult) {
    		var x = new XMLHttpRequest();
     		x.open(options.method, cors_api_url + options.url);
    			x.onload = x.onerror = function() { printResult(
@@ -1571,8 +1572,7 @@
 				<div id="help" style="display: none">
 					<h2>ABOUT THIS SITE</h2>
 					<p>NOTE: This site has been confirmed to work on Google Chrome and Microsoft Edge (Chromium) - latest versions. Other browsers may not be supported.</p>
-					<p>This site displays information about COVID-19 cases by county and state level. Data is obtained from <a href="https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv" target="_blank">Johns Hopkins University on GitHub.</a></p>
-					<p>Access to this data is performed through Cross-Site Scripting made available through a demo at <a href="https://cors-anywhere.herokuapp.com" target="_blank">HerokuApp</a>.</p>
+					<p>This site displays information about COVID-19 cases by county and state level. <a href="https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv" target="_blank">Data</a> is obtained from <a href="https://github.com/CSSEGISandData/COVID-19" target="_blank">Johns Hopkins University</a> on GitHub.</p>
 					<p>To get started, select a state and a county. Data will be shown for that county. Selecting another county will add that county to the graph. Counties can be removed at anytime using the list at the bottom of the page.</p>
 					<p>The y-axis can be set to be linear or logarithmic. The x-axis can be offset for each dataset showing the time since 5 cases were reported, or it can show all available data.</p>
 					<p>To view data by state, select "By State" rather than "By County." States can be added and removed in the same manner as counties.</p>
