@@ -16,6 +16,6 @@ This project was intended to make <a href="https://raw.githubusercontent.com/CSS
 <p>Metrics available to analyze both states and counties include Total Cases, New Cases per day, New Cases per day (7-day rolling average), Percent Growth per day, and Percent Growth per day (7-day rolling average).</p>
 <p>To view the top 20 states/counties based on the <i>current metric</i>, use the State Top 20 option to show the top 20 <u>counties</u> in the selected <u>state</u>, or use the US Top 20 option to show the top 20 <u>states or counties</u> in the United States. Note that data for counties with low numbers of cases may not be included.</p>
 <p>To create a custom ranking, with the option to choose lowest (rather than highest) data, use the Custom Rank option.</p>
-<p>The URL in your address bar is automatically updated with the options you have selected. To save your current layout, simply bookmark or favorite this page in your browser.</p>
+<p>The URL in your address bar is automatically updated with the options you have selected. To save your current layout, simply bookmark or favorite this page in your browser. Also, note that the back and forward buttons function as "undo" and "redo," respectively.</p>
 
 				
