@@ -392,7 +392,7 @@
 				deleteChildren("county");
 				var disabledOption = document.createElement("option");
 				var countySelect = document.getElementById("county");
-				disabledOption.innerText = "Choose a county...";
+				disabledOption.innerText = "Choose a county/territory...";
 				disabledOption.selected = true;
 				disabledOption.disabled = true;
 				disabledOption.value = 0;
@@ -442,6 +442,14 @@
 			}
 			
 			function showLegend() {
+				var stateSelect = document.getElementById("state");
+				var stateInf = stateSelect.value == "0" ? "(none selected)" : stateSelect.value;
+				var selectToRankBy = document.getElementById("dataType");
+				var stateTTP = "Get the top 20 counties/territories in " + stateInf + " ranked by " + selectToRankBy.children[selectToRankBy.selectedIndex].innerText;
+				document.getElementById("gts").title = stateTTP;
+				stateInf = (currentType == "state") ? "US" : stateInf;
+				var USTTP = "Get the top 20 locations (" + currentType + ") in " + stateInf + " ranked by " + selectToRankBy.children[selectToRankBy.selectedIndex].innerText;
+				document.getElementById("gtu").title = USTTP;
 				var array;
 				deleteChildren("output");
 				var outputSpace = document.getElementById("output");
@@ -913,7 +921,7 @@
 					if(specialArray && data[data.length - 1]) {
 						lastValue = data[data.length - 1];
 					}
-					if(raw[raw.length - 1] < 5) {
+					if(raw[raw.length - 1] < 5 && reverse == 1) {
 						lastValue = 0;	
 					}
 					lastDataPoints[i] = {
@@ -1068,12 +1076,14 @@
 			
 			function customRank() {
 				showTopDiv("rankDiv");
+				var selectToRankBy = document.getElementById("dataType");
+				document.getElementById("rby").innerText = selectToRankBy.children[selectToRankBy.selectedIndex].innerText;
 			}
 			
 			function showTopDiv(name) {
 				document.getElementById("customOverlay").style.display = "block";
 				setTimeout(() => { document.getElementById("customOverlay").style.opacity = 1;}, this.animationDelay + 20);   
-				document.getElementById("crby").innerText = document.getElementById("stateCounty").value;
+				document.getElementById("crby").innerText = document.getElementById("stateCounty").value.replace("y","ie") + "s";
 				document.getElementById(name).style.display = "block";
 			}
 			
@@ -1082,9 +1092,11 @@
 				if(type == "US") { funcName = getTopInUS } else { funcName = getTopInState }
 				var rev = document.getElementById("hilo").value;
 				var num = document.getElementById("num").value;
-				if(num) {
+				if(num && num > 0 && num % 1 == 0 && num < 201) {
 					doCustomRank(rev,num,funcName);
 					closeCustom();
+				} else {
+					alert("Please specify a valid number, less than or equal to 200.");	
 				}
 			}
 			
@@ -1492,7 +1504,7 @@
 			}
 			
 			#verticalAlign {
-				line-height: calc((30vw - 10px) / 3)	
+				line-height: calc((30vw - 10px) / 6)	
 			}
 			#help {
 				height: 100%;
@@ -1536,7 +1548,7 @@
 				<option value="county" selected>By County</option>
 				<option value="state">By State</option>
 			</select>
-			<button id="customBtn" onclick="customRank()" class="top" >Custom Rank</button>
+			<button id="customBtn" title="Click to change sort order and size of ranking list." onclick="customRank()" class="top" >Custom Rank</button>
 			<button id="clearBtn" onclick="clearData()" class="top" >Clear</button>
 			<button id="resetBtn" onclick="changeURL(true);window.location.reload();" class="top" >Reset</button>
 			<button onclick="showHelp()" class="top">HELP</button>
@@ -1556,14 +1568,14 @@
 			<div id="windowBox">
 				<div id="rankDiv" style="display: none">
 					<div id="verticalAlign">
-						CUSTOM RANKING by <label id="crby"></label><br/>
+						CUSTOM RANKING<br/>
 						Get 
 						<select id="hilo">
 							<option value=1 selected>Highest</option>
 							<option value=-1>Lowest</option>
 						</select>
 						<input id="num" type="number" />
-						locations<br/>
+						<label id="crby"></label><br/>ranked by <label id="rby"></label><br/>
 						<button id="gis" onclick="customRankGo('state')">Go (in state)</button>
 						<button onclick="customRankGo('US')">Go (in US)</button>
 						<button onclick="closeCustom()">Cancel</button>
@@ -1571,15 +1583,27 @@
 				</div>
 				<div id="help" style="display: none">
 					<h2>ABOUT THIS SITE</h2>
+					<p align="center"><button onclick="closeCustom()">Close</button></p>
 					<p>NOTE: This site has been confirmed to work on Google Chrome and Microsoft Edge (Chromium) - latest versions. Other browsers may not be supported.</p>
 					<p>This site displays information about COVID-19 cases by county and state level. <a href="https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv" target="_blank">Data</a> is obtained from <a href="https://github.com/CSSEGISandData/COVID-19" target="_blank">Johns Hopkins University</a> on GitHub.</p>
-					<p>To get started, select a state and a county. Data will be shown for that county. Selecting another county will add that county to the graph. Counties can be removed at anytime using the list at the bottom of the page.</p>
+					
+					<h3>Basic Operation</h3>
+					<ul>
+						<li><u>Add county</u>: Chose a state, then choose a county</li>
+						<li><u>View by state</u>: Change "BY COUNTY" to "BY STATE", then choose a state </li>
+						<li><u>Clear graph without changing options</u>: Clear</li>
+						<li><u>Reset to default options</u>: Reset</li>
+						<li><u>Undo/Redo</u>: Back/Forward (browser)</li>
+						<li><u>Save layout</u>: Create bookmark or favorite</li>
+					</ul>
+					
+					<!--<p>To get started, select a state and a county. Data will be shown for that county. Selecting another county will add that county to the graph. Counties can be removed at anytime using the list at the bottom of the page.</p>
 					<p>The y-axis can be set to be linear or logarithmic. The x-axis can be offset for each dataset showing the time since 5 cases were reported, or it can show all available data.</p>
 					<p>To view data by state, select "By State" rather than "By County." States can be added and removed in the same manner as counties.</p>
 					<p>Metrics available to analyze both states and counties include Total Cases, New Cases per day, New Cases per day (7-day rolling average), Percent Growth per day, and Percent Growth per day (7-day rolling average).</p>
 					<p>To view the top 20 states/counties based on the <i>current metric</i>, use the State Top 20 option to show the top 20 <u>counties</u> in the selected <u>state</u>, or use the US Top 20 option to show the top 20 <u>states or counties</u> in the United States. Note that data for counties with low numbers of cases may not be included.</p>
 					<p>To create a custom ranking, with the option to choose lowest (rather than highest) data, use the Custom Rank option.</p>
-					<p>The URL in your address bar is automatically updated with the options you have selected. To save your current layout, simply bookmark or favorite this page in your browser.</p>
+					<p>The URL in your address bar is automatically updated with the options you have selected. To save your current layout, simply bookmark or favorite this page in your browser. Also, note that the back and forward buttons function as "undo" and "redo," respectively.</p>-->
 					<p>More information is available at <a href="https://github.com/jpiland16/coronavirus-data/" target="_blank">GitHub</a>.</p>
 				</div>
 			</div>
