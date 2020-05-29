@@ -2,6 +2,8 @@
 Graphical analysis of coronavirus data by county (US).
 <h3><a href="https://jpiland16.github.io/coronavirus-data/" target="_blank"> &gt;&gt; Visit Page </a></h3>
 
+<a href="https://jpiland16.github.io/coronavirus-data/?by=county&x=DaysSince5&dataType=TotalCases&scale=linear&top=1,10,North%20Carolina">&gt;&gt; Demo link</a>
+
 <h2>About this project</h2>
 
 This project was intended to make <a href="https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_time_series/time_series_covid19_confirmed_US.csv" target="_blank">data</a>  from <a href="https://github.com/CSSEGISandData/COVID-19" target="_blank">Johns Hopkins University</a> more easily available. I was inspired by the graphs available at <a href="https://91-divoc.com/pages/covid-visualization/" target="_blank">91-DIVOC</a> and so I created a similar project with county-level granularity. My site also stores session information in the URL parameters, such that you may bookmark a graph and return to the same viewing mode.
