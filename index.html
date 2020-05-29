@@ -447,8 +447,7 @@
 				var selectToRankBy = document.getElementById("dataType");
 				var stateTTP = "Get the top 20 counties/territories in " + stateInf + " ranked by " + selectToRankBy.children[selectToRankBy.selectedIndex].innerText;
 				document.getElementById("gts").title = stateTTP;
-				stateInf = (currentType == "state") ? "US" : stateInf;
-				var USTTP = "Get the top 20 locations (" + currentType + ") in " + stateInf + " ranked by " + selectToRankBy.children[selectToRankBy.selectedIndex].innerText;
+				var USTTP = "Get the top 20 locations (" + currentType + ") in US " ranked by " + selectToRankBy.children[selectToRankBy.selectedIndex].innerText;
 				document.getElementById("gtu").title = USTTP;
 				var array;
 				deleteChildren("output");
@@ -1521,10 +1520,10 @@
     <body onload="bodyLoaded()">
 		<div id="topBar">
 			<input type="text" class="top" readonly id="status" value="Importing data from JHU dataset. Please wait..."/>
-			<select id="state" class="firstRow top topSelect" onchange="changeState()" disabled>
+			<select id="state" class="firstRow top topSelect" onchange="changeState()"  title="Select a state to add to graph." disabled>
 				<option disabled selected>Please wait...</option>
 			</select>
-			<select id="county" class="firstRow top" onchange="changeCounty()" disabled>
+			<select id="county" class="firstRow top" onchange="changeCounty()" title="Select a county to add to graph." disabled>
 				<option disabled selected value="0">Select a state first.</option>
 			</select><br/>
 			<select id="dataSelect" class="top" onchange="redrawChart()">
