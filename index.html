@@ -25,6 +25,7 @@
 			var loaded = false;
 			var fullscreenopen = false;
 			var preset = false;
+			var isBar = false;
 			
 			var originalController = Chart.controllers.line;
 			Chart.controllers.line = Chart.controllers.line.extend({
@@ -224,7 +225,12 @@
 					}	
 				}
 				
-				
+				if(getParam("isBar") == "true") {
+					isBar = true;
+					document.getElementById("lineBar").innerText = "Switch to " + (isBar ? "line" : "bar") + " chart";
+				} else {
+					isBar = false;	
+				}
 				
 				if(loaded) {
 					SCDisable();
@@ -793,7 +799,7 @@
 						label:	label,
 						//use if for states
 						data: specialArray(arrayToUse),
-						backgroundColor: "rgba(0, 0, 0, 0)",
+						backgroundColor: isBar ? "hsla(" + hue + ",90%,39%,0.7)" : "rgba(0, 0, 0, 0)",
 						borderColor: "hsla(" + hue + ",90%,39%,0.7)"
 					}
 				}
@@ -850,7 +856,7 @@
 				var ctx = document.getElementById("myChart");
 				if(myLineChart) { myLineChart.destroy(); }
 				myLineChart = new Chart(ctx, {
-				    type: 'line',
+				    type: isBar ? 'bar' : 'line',
 				    data: {
 						labels: getLabels(),
 						datasets: getDatasets()
@@ -1230,8 +1236,8 @@
 				var dataType =  document.getElementById("dataType").value;
 				var scale = document.getElementById("graphType").value;
 				
-				var addition = "?by=" + currentType + "&x=" + xAxisType + "&dataType=" + dataType + "&scale=" + scale + locations;
-				addition = reset ? "?by=county&x=DaysSince5&dataType=TotalCases&scale=linear" : addition;
+				var addition = "?by=" + currentType + "&x=" + xAxisType + "&dataType=" + dataType + "&scale=" + scale + "&isBar=" + isBar + locations;
+				addition = reset ? "?by=county&x=DaysSince5&dataType=TotalCases&scale=linear&isBar=false" : addition;
 				var newURL = encodeURI(baseURL + addition);
 				newURL = newURL.replace(/'/g,"%27");
 				var theyAreEqual = (window.location.href == newURL)
@@ -1307,6 +1313,13 @@
 						}
 					}
 				}
+			}
+
+			function switchLineBar() {
+				var btn = document.getElementById("lineBar");
+				isBar = !isBar;
+				btn.innerText = "Switch to " + (isBar ? "line" : "bar") + " chart";
+				redrawChart();
 			}
 			
         </script>     
@@ -1561,6 +1574,7 @@
 		<div id="chartSpace">
 			<button onclick="fsChart()" class="fsNot">Expand Chart (full screen)</button>
 			<button onclick="document.exitFullscreen()" class="fsOnly">Close full screen</button>
+			<button id="lineBar" onclick="switchLineBar()">Switch to bar chart</button>
 			<canvas id="myChart">
 			</canvas>
 		</div>
