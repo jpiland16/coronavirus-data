@@ -227,13 +227,14 @@
 				
 				if(getParam("isBar") == "true") {
 					isBar = true;
-					document.getElementById("lineBar").innerText = "Switch to " + (isBar ? "line" : "bar") + " chart";
 				} else {
 					isBar = false;	
 				}
+
 				
 				if(loaded) {
 					SCDisable();
+					document.getElementById("lineBar").innerText = "Switch to " + (isBar ? "line" : "bar") + " chart";
 					var isTopParam = getParam("top");
 					isTop = isTopParam ? isTopParam : "";
 					showTopSelect();
