@@ -276,8 +276,8 @@
 						stat("Data downloaded. Analyzing...");
 						var currentState = ""; //(As in North Carolina)
 						JHUdata = data.split("\n");
-						var length = JHUdata.length - 1; //last line is blank
-						length = 3341; //Actually - line 3341 is the last "county" listing.
+						var length = JHUdata.length; 
+						//length = 3341; //Actually - line 3341 is the last "county" listing.
 						for(var i = 0; i < length; i++) {
 							coronaData[i] = [];
 							coronaData[i] = JHUdata[i].split(",")
