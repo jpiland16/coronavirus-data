@@ -283,7 +283,7 @@
 							coronaData[i] = JHUdata[i].split(",")
 							coronaData[i] = resolveCommas(coronaData[i]);
 							
-							if(i > 0) {
+							if(i > 0 && coronaData[i].length > 0) {
 								var locationInfo = coronaData[i][10].split(",");
 								if(locationInfo[1][0] == " ") {
 									locationInfo[1] = locationInfo[1].substring(1);	
